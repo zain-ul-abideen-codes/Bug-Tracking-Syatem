@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
+import { Alert, Box, Chip, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { createUser, deleteUser, getUsers, resetPassword, updateUser } from "../api/usersApi";
 import useAuth from "../hooks/useAuth";
 import useModal from "../hooks/useModal";
@@ -69,38 +71,54 @@ export default function UsersPage() {
   };
 
   if (!canManageUsers) {
-    return <section className="panel">User management is available to administrators only.</section>;
+    return <Alert severity="info">User management is available to administrators only.</Alert>;
   }
 
   if (loading) return <LoadingSpinner label="Loading users..." />;
 
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2>User Accounts</h2>
-          <p>Create, update, delete, and reset user accounts.</p>
-        </div>
-        <Button onClick={handleCreate}>Create User</Button>
-      </div>
-      {error ? <p className="server-error">{error}</p> : null}
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+    <Paper
+      sx={{
+        p: 3,
+        background: "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(244,249,255,0.96))",
+      }}
+    >
+      <Stack spacing={2.5}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <AdminPanelSettingsRoundedIcon color="primary" />
+              <Typography variant="h5">User Accounts</Typography>
+            </Stack>
+            <Typography color="text.secondary">Create, update, delete, and reset user accounts.</Typography>
+          </Box>
+          <Button onClick={handleCreate}>Create User</Button>
+        </Stack>
+        {error ? <Alert severity="error">{error}</Alert> : null}
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {users.map((record) => (
-              <tr key={record._id}>
-                <td>{record.name}</td>
-                <td>{record.email}</td>
-                <td>{record.role}</td>
-                <td className="actions-cell">
+              <TableRow key={record._id}>
+                <TableCell>{record.name}</TableCell>
+                <TableCell>{record.email}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={record.role}
+                    size="small"
+                    sx={{ textTransform: "capitalize" }}
+                    color={record.role === "administrator" ? "secondary" : "default"}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
                   <Button variant="secondary" onClick={() => handleEdit(record)}>
                     Edit
                   </Button>
@@ -110,18 +128,19 @@ export default function UsersPage() {
                   <Button variant="danger" onClick={() => handleDelete(record._id)}>
                     Delete
                   </Button>
-                </td>
-              </tr>
+                  </Stack>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Stack>
       {userModal.isOpen ? (
         <UserModal user={selectedUser} onClose={userModal.closeModal} onSubmit={handleSubmitUser} />
       ) : null}
       {passwordModal.isOpen ? (
         <PasswordResetModal onClose={passwordModal.closeModal} onSubmit={handleReset} />
       ) : null}
-    </section>
+    </Paper>
   );
 }

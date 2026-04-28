@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Alert, Stack } from "@mui/material";
 import Modal from "../common/Modal";
 import InputField from "../common/InputField";
 import Button from "../common/Button";
@@ -21,6 +22,7 @@ export default function PasswordResetModal({ onClose, onSubmit }) {
   return (
     <Modal title="Reset Password" onClose={onClose}>
       <form className="modal-form" onSubmit={handleSubmit}>
+        <Alert severity="warning">This will immediately replace the user’s current password and force a fresh login.</Alert>
         <InputField
           label="New Password"
           name="newPassword"
@@ -29,12 +31,12 @@ export default function PasswordResetModal({ onClose, onSubmit }) {
           onChange={(event) => setNewPassword(event.target.value)}
           error={error}
         />
-        <div className="modal-actions">
+        <Stack className="modal-actions" direction="row">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit">Reset Password</Button>
-        </div>
+        </Stack>
       </form>
     </Modal>
   );

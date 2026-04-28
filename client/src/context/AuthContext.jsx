@@ -4,6 +4,9 @@ import api from "../api/axios";
 import { loginRequest, logoutRequest, refreshRequest } from "../api/authApi";
 
 export const AuthContext = createContext(null);
+const AUTH_MESSAGE_KEY = "auth_message";
+const AUTH_REFRESH_LOCK_KEY = "auth_refresh_lock";
+const AUTH_REFRESH_WAIT_MS = 5000;
 
 const parseJwtExpiry = (token) => {
   try {
@@ -23,6 +26,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const refreshPromiseRef = useRef(null);
   const refreshTimerRef = useRef(null);
+  const channelRef = useRef(null);
 
   const clearSession = () => {
     if (refreshTimerRef.current) {
@@ -38,7 +42,7 @@ export function AuthProvider({ children }) {
   const handleSessionExpired = () => {
     clearSession();
     sessionStorage.setItem(
-      "auth_message",
+      AUTH_MESSAGE_KEY,
       "Your session expired. Please log in again."
     );
     navigate("/login", {
@@ -73,17 +77,54 @@ export function AuthProvider({ children }) {
     setUser(authUser);
     localStorage.setItem("accessToken", token);
     localStorage.setItem("user", JSON.stringify(authUser));
+    channelRef.current?.postMessage({ type: "session_updated", token, user: authUser });
     scheduleRefresh(token);
   };
 
+  const waitForSessionUpdate = () =>
+    new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        window.removeEventListener("storage", handleStorage);
+        reject(new Error("Timed out waiting for shared session update."));
+      }, AUTH_REFRESH_WAIT_MS);
+
+      const handleStorage = (event) => {
+        if (event.key === "accessToken" && event.newValue) {
+          window.clearTimeout(timeout);
+          window.removeEventListener("storage", handleStorage);
+          const nextUser = localStorage.getItem("user");
+          setAccessToken(event.newValue);
+          setUser(nextUser ? JSON.parse(nextUser) : null);
+          scheduleRefresh(event.newValue);
+          resolve({
+            accessToken: event.newValue,
+            user: nextUser ? JSON.parse(nextUser) : null,
+          });
+        }
+      };
+
+      window.addEventListener("storage", handleStorage);
+    });
+
   const refreshSession = async () => {
+    const existingLock = localStorage.getItem(AUTH_REFRESH_LOCK_KEY);
+    if (existingLock) {
+      return waitForSessionUpdate();
+    }
+
     if (!refreshPromiseRef.current) {
+      localStorage.setItem(
+        AUTH_REFRESH_LOCK_KEY,
+        JSON.stringify({ expiresAt: Date.now() + AUTH_REFRESH_WAIT_MS })
+      );
+
       refreshPromiseRef.current = refreshRequest()
         .then((data) => {
           setSession(data.accessToken, data.user);
           return data;
         })
         .finally(() => {
+          localStorage.removeItem(AUTH_REFRESH_LOCK_KEY);
           refreshPromiseRef.current = null;
         });
     }
@@ -92,6 +133,18 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    channelRef.current = new BroadcastChannel("bug-tracking-auth");
+    channelRef.current.onmessage = (event) => {
+      if (event.data?.type === "session_updated") {
+        setAccessToken(event.data.token);
+        setUser(event.data.user);
+        scheduleRefresh(event.data.token);
+      }
+      if (event.data?.type === "session_cleared") {
+        clearSession();
+      }
+    };
+
     const requestInterceptor = api.interceptors.request.use((config) => {
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
@@ -121,6 +174,7 @@ export function AuthProvider({ children }) {
     );
 
     return () => {
+      channelRef.current?.close();
       api.interceptors.request.eject(requestInterceptor);
       api.interceptors.response.eject(responseInterceptor);
     };
@@ -165,7 +219,7 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const data = await loginRequest(credentials);
-    sessionStorage.removeItem("auth_message");
+    sessionStorage.removeItem(AUTH_MESSAGE_KEY);
     setSession(data.accessToken, data.user);
     return data;
   };
@@ -175,6 +229,7 @@ export function AuthProvider({ children }) {
       await logoutRequest();
     } finally {
       clearSession();
+      channelRef.current?.postMessage({ type: "session_cleared" });
     }
   };
 

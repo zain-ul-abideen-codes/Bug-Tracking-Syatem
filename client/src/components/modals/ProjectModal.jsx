@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Box, Stack, TextField, Typography } from "@mui/material";
 import Modal from "../common/Modal";
 import InputField from "../common/InputField";
 import SelectField from "../common/SelectField";
@@ -30,7 +31,7 @@ export default function ProjectModal({ project, users, currentRole, onClose, onS
     const { name, value, options, multiple } = event.target;
     setForm((current) => ({
       ...current,
-      [name]: multiple ? selectedValues(options) : value,
+      [name]: multiple ? (Array.isArray(value) ? value : selectedValues(options)) : value,
     }));
   };
 
@@ -43,11 +44,20 @@ export default function ProjectModal({ project, users, currentRole, onClose, onS
   return (
     <Modal title={project ? "Edit Project" : "Create Project"} onClose={onClose}>
       <form className="modal-form" onSubmit={handleSubmit}>
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Build a polished delivery workspace with clear ownership for QA and development.
+          </Typography>
+        </Box>
         <InputField label="Project Title" name="title" value={form.title} onChange={handleChange} error={errors.title} />
-        <label className="field">
-          <span>Description</span>
-          <textarea className="field-input textarea" name="description" value={form.description} onChange={handleChange} />
-        </label>
+        <TextField
+          label="Description"
+          name="description"
+          multiline
+          minRows={4}
+          value={form.description}
+          onChange={handleChange}
+        />
         {currentRole === "administrator" ? (
           <SelectField
             label="Manager"
@@ -73,12 +83,12 @@ export default function ProjectModal({ project, users, currentRole, onClose, onS
           multiple
           options={developers.map((user) => ({ value: user._id, label: user.name }))}
         />
-        <div className="modal-actions">
+        <Stack className="modal-actions" direction="row">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit">{project ? "Save Changes" : "Create Project"}</Button>
-        </div>
+        </Stack>
       </form>
     </Modal>
   );

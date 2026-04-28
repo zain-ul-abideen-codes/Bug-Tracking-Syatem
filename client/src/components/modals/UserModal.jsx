@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Box, Stack, Typography } from "@mui/material";
 import Modal from "../common/Modal";
 import InputField from "../common/InputField";
 import SelectField from "../common/SelectField";
@@ -41,6 +42,11 @@ export default function UserModal({ user, onClose, onSubmit }) {
   return (
     <Modal title={user ? "Edit User" : "Create User"} onClose={onClose}>
       <form className="modal-form" onSubmit={handleSubmit}>
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Set up access, permissions, and ownership for this team member.
+          </Typography>
+        </Box>
         <InputField label="Full Name" name="name" value={form.name} onChange={handleChange} error={errors.name} />
         <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
         {!user ? (
@@ -54,12 +60,12 @@ export default function UserModal({ user, onClose, onSubmit }) {
           />
         ) : null}
         <SelectField label="Role" name="role" value={form.role} onChange={handleChange} options={roleOptions} error={errors.role} />
-        <div className="modal-actions">
+        <Stack className="modal-actions" direction="row">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit">{user ? "Save Changes" : "Create User"}</Button>
-        </div>
+        </Stack>
       </form>
     </Modal>
   );

@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Paper, Stack, Typography } from "@mui/material";
 
 const colors = ["#d4693f", "#1e5f74", "#37966f", "#bb3e03", "#7b2cbf", "#264653"];
 
@@ -43,11 +44,12 @@ export default function DashboardCharts({ charts }) {
   return (
     <div className="chart-grid">
       {sections.map((section) => (
-        <section key={section.title} className="panel chart-panel">
-          <div className="panel-heading">
-            <h3>{section.title}</h3>
-          </div>
-          <div className="chart-wrap">
+        <Paper key={section.title} sx={{ p: 3 }}>
+          <Stack spacing={2}>
+            <div>
+              <Typography variant="h6">{section.title}</Typography>
+            </div>
+            <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={280}>
               {section.type === "pie" ? (
                 <PieChart>
@@ -91,8 +93,9 @@ export default function DashboardCharts({ charts }) {
                 </LineChart>
               )}
             </ResponsiveContainer>
-          </div>
-        </section>
+            </div>
+          </Stack>
+        </Paper>
       ))}
     </div>
   );

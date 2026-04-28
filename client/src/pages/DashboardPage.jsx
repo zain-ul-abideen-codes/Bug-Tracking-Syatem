@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import AutoGraphRoundedIcon from "@mui/icons-material/AutoGraphRounded";
+import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
+import TrackChangesRoundedIcon from "@mui/icons-material/TrackChangesRounded";
+import { Alert, Box, Chip, Grid, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { getDashboard } from "../api/dashboardApi";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import StatCard from "../components/common/StatCard";
@@ -28,67 +32,103 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) return <LoadingSpinner label="Loading dashboard..." />;
-  if (error) return <div className="panel">{error}</div>;
+  if (error) return <Alert severity="error">{error}</Alert>;
 
   return (
-    <div className="page-stack">
-      <section className="hero-panel">
-        <div>
-          <p className="eyebrow">Delivery Command Center</p>
-          <h2>Track delivery health, unblock teams, and keep every release visible.</h2>
-          <p className="hero-copy">
+    <Stack spacing={3}>
+      <Paper
+        sx={{
+          p: { xs: 3, md: 4 },
+          overflow: "hidden",
+          position: "relative",
+          background:
+            "radial-gradient(circle at top right, rgba(255,255,255,0.12), transparent 24%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(31,111,120,0.95) 56%, rgba(14,116,144,0.88))",
+          color: "white",
+        }}
+      >
+        <Stack spacing={2}>
+          <Typography sx={{ textTransform: "uppercase", letterSpacing: "0.16em", opacity: 0.8 }}>
+            Delivery Command Center
+          </Typography>
+          <Typography variant="h4">Track delivery health, unblock teams, and keep every release visible.</Typography>
+          <Typography sx={{ maxWidth: 920, color: "rgba(255,255,255,0.78)" }}>
             Personalized analytics for {user.role} with issue movement, completion pressure, and project distribution.
-          </p>
-        </div>
-        <div className="hero-chip-row">
-          <span className="hero-chip">Role-based insights</span>
-          <span className="hero-chip">Live issue distribution</span>
-          <span className="hero-chip">Project workload visibility</span>
-        </div>
-      </section>
-      <section className="stats-grid">
-        <StatCard label="Projects" value={dashboard.metrics.projectCount} tone="default" helper="Active delivery spaces" />
-        <StatCard label="All Issues" value={dashboard.metrics.issueCount} tone="accent" helper="Total visible issues" />
-        <StatCard label="Open Work" value={dashboard.metrics.openCount} tone="warning" helper="New and in progress" />
-        <StatCard label="Done" value={dashboard.metrics.completedCount} tone="success" helper="Resolved and completed" />
-        <StatCard label="Overdue" value={dashboard.metrics.overdueCount} tone="danger" helper="Need attention now" />
-        <StatCard label="Assigned To Me" value={dashboard.metrics.assignedToMeCount} tone="teal" helper="Personal ownership" />
-      </section>
+          </Typography>
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+            <Chip icon={<InsightsRoundedIcon />} label="Executive visibility" sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "white" }} />
+            <Chip icon={<TrackChangesRoundedIcon />} label="Workflow monitoring" sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "white" }} />
+            <Chip icon={<AutoGraphRoundedIcon />} label="Trend-first insights" sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "white" }} />
+          </Stack>
+        </Stack>
+      </Paper>
+      <Grid container spacing={2.5}>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="Projects" value={dashboard.metrics.projectCount} tone="default" helper="Active delivery spaces" />
+        </Grid>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="All Issues" value={dashboard.metrics.issueCount} tone="accent" helper="Total visible issues" />
+        </Grid>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="Open Work" value={dashboard.metrics.openCount} tone="warning" helper="New and in progress" />
+        </Grid>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="Done" value={dashboard.metrics.completedCount} tone="success" helper="Resolved and completed" />
+        </Grid>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="Overdue" value={dashboard.metrics.overdueCount} tone="danger" helper="Need attention now" />
+        </Grid>
+        <Grid item xs={12} sm={6} lg={2}>
+          <StatCard label="Assigned To Me" value={dashboard.metrics.assignedToMeCount} tone="teal" helper="Personal ownership" />
+        </Grid>
+      </Grid>
       <DashboardCharts charts={dashboard.charts} />
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Recent Issues</h2>
-            <p>Latest work items visible to your role.</p>
-          </div>
-        </div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Project</th>
-                <th>Assignee</th>
-                <th>Deadline</th>
-              </tr>
-            </thead>
-            <tbody>
+      <Paper sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="h5">Recent Issues</Typography>
+            <Typography color="text.secondary">Latest work items visible to your role.</Typography>
+          </Box>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Title</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Project</TableCell>
+                <TableCell>Assignee</TableCell>
+                <TableCell>Deadline</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {dashboard.recentIssues.map((issue) => (
-                <tr key={issue._id}>
-                  <td>{issue.title}</td>
-                  <td>{issue.type}</td>
-                  <td>{issue.status}</td>
-                  <td>{issue.project?.title || "Unknown"}</td>
-                  <td>{issue.assignedDeveloper?.name || "Unassigned"}</td>
-                  <td>{issue.deadline ? new Date(issue.deadline).toLocaleDateString() : "No deadline"}</td>
-                </tr>
+                <TableRow key={issue._id}>
+                  <TableCell>{issue.title}</TableCell>
+                  <TableCell sx={{ textTransform: "capitalize" }}>{issue.type}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={issue.status}
+                      sx={{ textTransform: "capitalize" }}
+                      color={
+                        ["resolved", "completed"].includes(issue.status)
+                          ? "success"
+                          : issue.status === "reopened"
+                            ? "error"
+                            : issue.status === "started"
+                              ? "info"
+                              : "warning"
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>{issue.project?.title || "Unknown"}</TableCell>
+                  <TableCell>{issue.assignedDeveloper?.name || "Unassigned"}</TableCell>
+                  <TableCell>{issue.deadline ? new Date(issue.deadline).toLocaleDateString() : "No deadline"}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
+            </TableBody>
+          </Table>
+        </Stack>
+      </Paper>
+    </Stack>
   );
 }

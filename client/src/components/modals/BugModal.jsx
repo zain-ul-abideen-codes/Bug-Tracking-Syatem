@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Grid, TextField } from "@mui/material";
 import Modal from "../common/Modal";
 import InputField from "../common/InputField";
 import SelectField from "../common/SelectField";
@@ -137,18 +138,28 @@ export default function BugModal({
             {!projects.length ? (
               <p className="hint-text">No project available yet. Create a project first, then you can raise issues here.</p>
             ) : null}
-            <label className="field">
-              <span>Description</span>
-              <textarea className="field-input textarea" name="description" value={form.description} onChange={handleChange} />
-            </label>
-            <InputField label="Deadline" name="deadline" type="date" value={form.deadline} onChange={handleChange} />
-            <SelectField
-              label="Assigned Developer"
-              name="assignedDeveloper"
-              value={form.assignedDeveloper}
+            <TextField
+              label="Description"
+              name="description"
+              multiline
+              minRows={4}
+              value={form.description}
               onChange={handleChange}
-              options={availableDevelopers.map((user) => ({ value: user._id, label: user.name }))}
             />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <InputField label="Deadline" name="deadline" type="date" value={form.deadline} onChange={handleChange} />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <SelectField
+                  label="Assigned Developer"
+                  name="assignedDeveloper"
+                  value={form.assignedDeveloper}
+                  onChange={handleChange}
+                  options={availableDevelopers.map((user) => ({ value: user._id, label: user.name }))}
+                />
+              </Grid>
+            </Grid>
             {form.project && !availableDevelopers.length ? (
               <p className="hint-text">This project has no assigned developers yet. Add a developer in the project screen or leave assignee empty.</p>
             ) : null}

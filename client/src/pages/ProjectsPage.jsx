@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import FolderSpecialRoundedIcon from "@mui/icons-material/FolderSpecialRounded";
+import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
+import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { getUsers } from "../api/usersApi";
 import { createProject, deleteProject, getProjects, updateProject } from "../api/projectsApi";
 import useAuth from "../hooks/useAuth";
@@ -66,47 +69,91 @@ export default function ProjectsPage() {
   if (loading) return <LoadingSpinner label="Loading projects..." />;
 
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Projects</h2>
-          <p>Track assignments for managers, QA engineers, and developers.</p>
-        </div>
-        {canManageProjects ? <Button onClick={openCreate}>Create Project</Button> : null}
-      </div>
-      {error ? <p className="server-error">{error}</p> : null}
-      <div className="project-grid">
+    <Stack spacing={2.5}>
+      <Paper
+        sx={{
+          p: 3,
+          background: "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(244,249,255,0.96))",
+        }}
+      >
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <FolderSpecialRoundedIcon color="primary" />
+              <Typography variant="h5">Projects</Typography>
+            </Stack>
+            <Typography color="text.secondary">Track assignments for managers, QA engineers, and developers.</Typography>
+          </Box>
+          {canManageProjects ? <Button onClick={openCreate}>Create Project</Button> : null}
+        </Stack>
+      </Paper>
+      {error ? <Alert severity="error">{error}</Alert> : null}
+      <Box
+        sx={{
+          columnCount: { xs: 1, md: 2, xl: 3 },
+          columnGap: 2.5,
+        }}
+      >
         {projects.map((project) => (
-          <article className="project-card" key={project._id}>
-            <h3>{project.title}</h3>
-            <p>{project.description || "No description provided."}</p>
-            <dl className="meta-list">
-              <div>
-                <dt>Manager</dt>
-                <dd>{project.manager?.name || "Unassigned"}</dd>
-              </div>
-              <div>
-                <dt>QA</dt>
-                <dd>{project.qaEngineers.map((member) => member.name).join(", ") || "None"}</dd>
-              </div>
-              <div>
-                <dt>Developers</dt>
-                <dd>{project.developers.map((member) => member.name).join(", ") || "None"}</dd>
-              </div>
-            </dl>
-            {canManageProjects ? (
-              <div className="card-actions">
-                <Button variant="secondary" onClick={() => openEdit(project)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => handleDelete(project._id)}>
-                  Delete
-                </Button>
-              </div>
-            ) : null}
-          </article>
+          <Box
+            key={project._id}
+            sx={{
+              breakInside: "avoid",
+              mb: 2.5,
+            }}
+          >
+            <Paper
+              sx={{
+                p: 3,
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,250,251,0.96))",
+              }}
+            >
+              <Stack spacing={2} sx={{ height: "100%" }}>
+                <Box>
+                  <Typography variant="h6">{project.title}</Typography>
+                  <Typography color="text.secondary">
+                    {project.description || "No description provided."}
+                  </Typography>
+                </Box>
+                <Stack spacing={1.5}>
+                  <Typography variant="body2"><strong>Manager:</strong> {project.manager?.name || "Unassigned"}</Typography>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+                      <GroupsRoundedIcon sx={{ fontSize: 18, color: "primary.main" }} />
+                      <Typography variant="body2"><strong>QA Engineers</strong></Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {project.qaEngineers.length
+                        ? project.qaEngineers.map((member) => <Chip key={member._id} label={member.name} size="small" />)
+                        : <Chip label="None" size="small" variant="outlined" />}
+                    </Stack>
+                  </Box>
+                  <Box>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+                      <GroupsRoundedIcon sx={{ fontSize: 18, color: "secondary.main" }} />
+                      <Typography variant="body2"><strong>Developers</strong></Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {project.developers.length
+                        ? project.developers.map((member) => <Chip key={member._id} label={member.name} size="small" color="primary" variant="outlined" />)
+                        : <Chip label="None" size="small" variant="outlined" />}
+                    </Stack>
+                  </Box>
+                </Stack>
+                {canManageProjects ? (
+                  <Stack direction="row" spacing={1} sx={{ mt: "auto", pt: 1.5 }}>
+                    <Button variant="secondary" onClick={() => openEdit(project)}>Edit</Button>
+                    <Button variant="danger" onClick={() => handleDelete(project._id)}>Delete</Button>
+                  </Stack>
+                ) : null}
+              </Stack>
+            </Paper>
+          </Box>
         ))}
-      </div>
+      </Box>
       {projectModal.isOpen ? (
         <ProjectModal
           project={selectedProject}
@@ -116,6 +163,6 @@ export default function ProjectsPage() {
           onSubmit={submitProject}
         />
       ) : null}
-    </section>
+    </Stack>
   );
 }

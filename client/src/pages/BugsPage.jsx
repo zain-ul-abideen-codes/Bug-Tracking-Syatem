@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import { Alert, Box, Chip, InputAdornment, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { createBug, deleteBug, getBugs, updateBug } from "../api/bugsApi";
 import { getProjects } from "../api/projectsApi";
 import { getUsers } from "../api/usersApi";
@@ -111,98 +114,97 @@ export default function BugsPage() {
   if (loading) return <LoadingSpinner label="Loading issues..." />;
 
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Issues</h2>
-          <p>Bugs and feature requests with project context and workflow status.</p>
-        </div>
-        {canCreate ? <Button onClick={openCreate}>Create Issue</Button> : null}
-      </div>
-      {error ? <p className="server-error">{error}</p> : null}
-      <div className="toolbar-grid">
-        <input
-          className="field-input"
+    <Stack spacing={2.5}>
+      <Paper
+        sx={{
+          p: 3,
+          background: "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(244,249,255,0.96))",
+        }}
+      >
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Stack direction="row" spacing={1.2} alignItems="center">
+              <BugReportRoundedIcon color="primary" />
+              <Typography variant="h5">Issues</Typography>
+            </Stack>
+            <Typography color="text.secondary">Bugs and feature requests with project context and workflow status.</Typography>
+          </Box>
+          {canCreate ? <Button onClick={openCreate}>Create Issue</Button> : null}
+        </Stack>
+      </Paper>
+      {error ? <Alert severity="error">{error}</Alert> : null}
+      <Paper sx={{ p: 2 }}>
+        <Box className="toolbar-grid">
+        <TextField
+          size="small"
+          fullWidth
           placeholder="Search by title, project, assignee, type, or status"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchRoundedIcon />
+              </InputAdornment>
+            ),
+          }}
         />
-        <select className="field-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">All Statuses</option>
-          <option value="new">New</option>
-          <option value="started">Started</option>
-          <option value="resolved">Resolved</option>
-          <option value="completed">Completed</option>
-          <option value="reopened">Reopened</option>
-        </select>
-        <select className="field-input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+        <TextField select size="small" SelectProps={{ native: true }} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          {["all","new","started","resolved","completed","reopened"].map((status) => (
+            <option key={status} value={status}>{status === "all" ? "All Statuses" : status}</option>
+          ))}
+        </TextField>
+        <TextField select size="small" SelectProps={{ native: true }} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
           <option value="all">All Types</option>
           <option value="bug">Bug</option>
           <option value="feature">Feature</option>
-        </select>
-        <select className="field-input" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
+        </TextField>
+        <TextField select size="small" SelectProps={{ native: true }} value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}>
           <option value="all">All Projects</option>
           {projects.map((project) => (
             <option key={project._id} value={project._id}>
               {project.title}
             </option>
           ))}
-        </select>
-      </div>
-      <div className="mini-stats-grid">
-        <div className="mini-stat-card">
-          <span>Total</span>
-          <strong>{summary.total}</strong>
-        </div>
-        <div className="mini-stat-card">
-          <span>New</span>
-          <strong>{summary.new}</strong>
-        </div>
-        <div className="mini-stat-card">
-          <span>Started</span>
-          <strong>{summary.started}</strong>
-        </div>
-        <div className="mini-stat-card">
-          <span>Done</span>
-          <strong>{summary.done}</strong>
-        </div>
-        <div className="mini-stat-card">
-          <span>Reopened</span>
-          <strong>{summary.reopened}</strong>
-        </div>
-      </div>
+        </TextField>
+        </Box>
+      </Paper>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Chip label={`Total: ${summary.total}`} />
+        <Chip label={`New: ${summary.new}`} color="warning" />
+        <Chip label={`Started: ${summary.started}`} color="info" />
+        <Chip label={`Done: ${summary.done}`} color="success" />
+        <Chip label={`Reopened: ${summary.reopened}`} color="error" />
+      </Stack>
       {!projects.length && canCreate ? (
-        <div className="empty-callout">
-          <strong>Issue creation needs a project first.</strong>
-          <p>Create a project in the Projects section, assign QA and developers, then come back here to log issues.</p>
-        </div>
+        <Alert severity="info">Issue creation needs a project first. Create a project in the Projects section, assign QA and developers, then come back here to log issues.</Alert>
       ) : null}
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Project</th>
-              <th>Assigned Developer</th>
-              <th>Deadline</th>
-              <th>Screenshot</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <Paper sx={{ p: 1.5, background: "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96))" }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Project</TableCell>
+              <TableCell>Assigned Developer</TableCell>
+              <TableCell>Deadline</TableCell>
+              <TableCell>Screenshot</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {filteredBugs.map((bug) => (
-              <tr key={bug._id}>
-                <td>{bug.title}</td>
-                <td>{bug.type}</td>
-                <td>
+              <TableRow key={bug._id}>
+                <TableCell>{bug.title}</TableCell>
+                <TableCell sx={{ textTransform: "capitalize" }}>{bug.type}</TableCell>
+                <TableCell>
                   <StatusBadge value={bug.status} />
-                </td>
-                <td>{bug.project?.title}</td>
-                <td>{bug.assignedDeveloper?.name || "Unassigned"}</td>
-                <td>{bug.deadline ? new Date(bug.deadline).toLocaleDateString() : "None"}</td>
-                <td>
+                </TableCell>
+                <TableCell>{bug.project?.title}</TableCell>
+                <TableCell>{bug.assignedDeveloper?.name || "Unassigned"}</TableCell>
+                <TableCell>{bug.deadline ? new Date(bug.deadline).toLocaleDateString() : "None"}</TableCell>
+                <TableCell>
                   {bug.screenshot ? (
                     <a href={`${apiBase}${bug.screenshot}`} target="_blank" rel="noreferrer">
                       View
@@ -210,8 +212,9 @@ export default function BugsPage() {
                   ) : (
                     "None"
                   )}
-                </td>
-                <td className="actions-cell">
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {canEdit(bug) ? (
                     <Button variant="secondary" onClick={() => openEdit(bug)}>
                       {user.role === "developer" ? "Update Status" : "Edit"}
@@ -222,12 +225,13 @@ export default function BugsPage() {
                       Delete
                     </Button>
                   ) : null}
-                </td>
-              </tr>
+                  </Stack>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
+      </Paper>
       {bugModal.isOpen ? (
         <BugModal
           issue={selectedBug}
@@ -239,6 +243,6 @@ export default function BugsPage() {
           onSubmit={submitBug}
         />
       ) : null}
-    </section>
+    </Stack>
   );
 }

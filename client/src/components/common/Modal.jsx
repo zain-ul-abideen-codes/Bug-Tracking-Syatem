@@ -1,20 +1,18 @@
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import { Dialog, DialogContent, DialogTitle, IconButton, Stack } from "@mui/material";
+
 export default function Modal({ title, children, onClose }) {
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="modal-card"
-        role="dialog"
-        aria-modal="true"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="icon-button" type="button" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <Dialog open onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <span>{title}</span>
+          <IconButton onClick={onClose}>
+            <CloseRoundedIcon />
+          </IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent dividers>{children}</DialogContent>
+    </Dialog>
   );
 }

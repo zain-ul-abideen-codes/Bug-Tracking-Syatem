@@ -25,7 +25,7 @@ const buildAuthResponse = (user) => {
 
   return {
     accessToken: signAccessToken(payload),
-    refreshToken: signRefreshToken({ userId: user._id }),
+    refreshToken: user.refreshToken || signRefreshToken({ userId: user._id }),
     user: payload,
   };
 };
@@ -70,8 +70,6 @@ const refresh = asyncHandler(async (req, res) => {
   }
 
   const auth = buildAuthResponse(user);
-  user.refreshToken = auth.refreshToken;
-  await user.save();
 
   res
     .cookie(env.refreshCookieName, auth.refreshToken, cookieOptions)

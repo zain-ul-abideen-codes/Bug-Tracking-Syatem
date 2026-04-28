@@ -1,3 +1,5 @@
+import { FormControl, InputLabel, MenuItem, OutlinedInput, Select } from "@mui/material";
+
 export default function SelectField({
   label,
   name,
@@ -8,23 +10,22 @@ export default function SelectField({
   multiple = false,
 }) {
   return (
-    <label className="field">
-      <span>{label}</span>
-      <select
-        className={error ? "field-input field-input-error" : "field-input"}
+    <FormControl fullWidth size="small" error={Boolean(error)}>
+      <InputLabel>{label}</InputLabel>
+      <Select
+        input={<OutlinedInput label={label} />}
         name={name}
         value={value}
         onChange={onChange}
         multiple={multiple}
       >
-        {!multiple ? <option value="">Select an option</option> : null}
+        {!multiple ? <MenuItem value="">Select an option</MenuItem> : null}
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <MenuItem key={option.value} value={option.value}>
             {option.label}
-          </option>
+          </MenuItem>
         ))}
-      </select>
-      {error ? <small className="field-error">{error}</small> : null}
-    </label>
+      </Select>
+    </FormControl>
   );
 }
