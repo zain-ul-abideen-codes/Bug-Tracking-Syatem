@@ -17,6 +17,25 @@ const parseJwtExpiry = (token) => {
   }
 };
 
+const getRefreshLock = () => {
+  const rawLock = localStorage.getItem(AUTH_REFRESH_LOCK_KEY);
+  if (!rawLock) {
+    return null;
+  }
+
+  try {
+    const parsedLock = JSON.parse(rawLock);
+    if (!parsedLock?.expiresAt || parsedLock.expiresAt <= Date.now()) {
+      localStorage.removeItem(AUTH_REFRESH_LOCK_KEY);
+      return null;
+    }
+    return parsedLock;
+  } catch (_error) {
+    localStorage.removeItem(AUTH_REFRESH_LOCK_KEY);
+    return null;
+  }
+};
+
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
   const [accessToken, setAccessToken] = useState(localStorage.getItem("accessToken"));
@@ -83,20 +102,45 @@ export function AuthProvider({ children }) {
 
   const waitForSessionUpdate = () =>
     new Promise((resolve, reject) => {
+      let settled = false;
       const timeout = window.setTimeout(() => {
-        window.removeEventListener("storage", handleStorage);
+        cleanup();
         reject(new Error("Timed out waiting for shared session update."));
       }, AUTH_REFRESH_WAIT_MS);
 
+      const poller = window.setInterval(() => {
+        const sharedToken = localStorage.getItem("accessToken");
+        if (sharedToken && sharedToken !== accessToken) {
+          const nextUser = localStorage.getItem("user");
+          settle({
+            accessToken: sharedToken,
+            user: nextUser ? JSON.parse(nextUser) : null,
+          });
+        }
+      }, 250);
+
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        window.clearInterval(poller);
+        window.removeEventListener("storage", handleStorage);
+      };
+
+      const settle = (data) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        setAccessToken(data.accessToken);
+        setUser(data.user);
+        scheduleRefresh(data.accessToken);
+        resolve(data);
+      };
+
       const handleStorage = (event) => {
         if (event.key === "accessToken" && event.newValue) {
-          window.clearTimeout(timeout);
-          window.removeEventListener("storage", handleStorage);
           const nextUser = localStorage.getItem("user");
-          setAccessToken(event.newValue);
-          setUser(nextUser ? JSON.parse(nextUser) : null);
-          scheduleRefresh(event.newValue);
-          resolve({
+          settle({
             accessToken: event.newValue,
             user: nextUser ? JSON.parse(nextUser) : null,
           });
@@ -107,7 +151,7 @@ export function AuthProvider({ children }) {
     });
 
   const refreshSession = async () => {
-    const existingLock = localStorage.getItem(AUTH_REFRESH_LOCK_KEY);
+    const existingLock = getRefreshLock();
     if (existingLock) {
       return waitForSessionUpdate();
     }

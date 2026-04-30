@@ -1,41 +1,108 @@
-# Bug Tracking System
+# BugTracker Pro
 
-Professional MERN stack Bug Tracking System with role-based access, JWT authentication, refresh token flow, project management, issue management, screenshot uploads, and analytics dashboards.
+BugTracker Pro is a full-stack MERN bug tracking platform built for role-based software teams. It includes secure authentication, project management, issue tracking, analytics dashboards, screenshot uploads, and an embedded AI assistant.
+
+The platform is designed around four roles:
+
+- `administrator`
+- `manager`
+- `qa`
+- `developer`
+
+It now includes a modern Material UI frontend, JWT access and refresh token authentication, seeded demo users, improved session handling, and a streaming AI assistant with audit logging and RBAC-safe tools.
+
+## Features
+
+### Core Platform
+
+- Secure login with JWT access tokens
+- HTTP-only refresh token cookie flow
+- Role-based route protection and API authorization
+- Password hashing with `bcrypt`
+- Project creation, editing, assignment, and deletion
+- Bug and feature request tracking
+- PNG and GIF screenshot uploads
+- Comment and reopened workflow support
+- Role-based dashboards and analytics
+- Admin user management and password reset
+
+### Frontend
+
+- React SPA built with Vite
+- Material UI based design system
+- Responsive sidebar and top app bar
+- DataGrid tables for issues and users
+- Dialog-based create and edit flows
+- Light and dark mode support
+- Snackbar notifications
+- Loading skeletons and empty states
+
+### AI Agent
+
+- Embedded BugBot chat interface
+- Streaming-style agent responses
+- RBAC-aware project and bug tools
+- Session memory and audit trail
+- Agent health, audit, and session routes
+- Local fast-path and fallback behavior for common requests
 
 ## Tech Stack
 
-- Frontend: React.js + Vite
-- Backend: Node.js + Express.js
-- Database: MongoDB + Mongoose
-- Auth: JWT access tokens + refresh token in HTTP-only cookie
-- Uploads: Multer
-- Charts: Recharts
+### Frontend
 
-## Roles
+- React
+- Vite
+- Material UI
+- React Router
+- Axios
+- Recharts
+- React Hook Form
+- Day.js
 
-- Administrator
-  Full access to users, projects, issues, dashboard, and password resets
-- Manager
-  Can manage projects and view project analytics
-- QA Engineer
-  Can create issues and manage only their own issues
-- Developer
-  Can view assigned issues and update only status
+### Backend
 
-## Main Features
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- JWT
+- bcrypt
+- Multer
+- LangChain
+- OpenAI SDK
+- Node Cache
 
-- Login with email/password
-- Refresh-token based session recovery
-- Auto-logout with session expired message
-- User management for admin
-- Project assignment flow for manager/admin
-- Bug and feature request management
-- PNG/GIF screenshot upload support
-- Role-based dashboard with cards, pie charts, bar chart, and velocity chart
-- Search and filter support on issues page
-- Sample seed scripts for quick demo data
+## User Roles
 
-## Folder Structure
+### Administrator
+
+- Full access to users, projects, issues, dashboards, and AI audit data
+- Can create, edit, delete, and reset users
+- Can create, edit, and delete projects
+- Can create and delete issues
+- Can view all analytics
+
+### Manager
+
+- Can create and manage projects
+- Can assign QA engineers and developers to projects
+- Can view project-level data
+- Cannot manage user accounts
+
+### QA Engineer
+
+- Can create bugs and feature requests
+- Can edit and delete only their own issues
+- Can view assigned projects
+- Can reopen issues and continue workflow discussion
+
+### Developer
+
+- Can view only assigned issues
+- Can update issue status for assigned issues
+- Cannot edit other issue attributes
+
+## Project Structure
 
 ```text
 bug-tracking-system/
@@ -54,6 +121,8 @@ bug-tracking-system/
 |       |-- hooks/
 |       |-- pages/
 |       `-- styles/
+|-- scripts/
+|   `-- dev-server.js
 |-- server/
 |   |-- package.json
 |   `-- src/
@@ -67,7 +136,6 @@ bug-tracking-system/
 |       |-- uploads/
 |       |-- utils/
 |       `-- validators/
-|-- .env
 |-- .env.example
 |-- package.json
 `-- README.md
@@ -75,7 +143,9 @@ bug-tracking-system/
 
 ## Environment Variables
 
-Project root `.env`:
+Create a root `.env` file and copy values from `.env.example`.
+
+### Required Application Variables
 
 ```env
 NODE_ENV=development
@@ -94,9 +164,26 @@ SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_PASSWORD=Admin@12345
 ```
 
+### AI Agent Variables
+
+```env
+OPENAI_API_KEY=sk-...
+AGENT_MODEL=gpt-4o
+AGENT_MAX_TOKENS=2000
+AGENT_TEMPERATURE=0
+AGENT_MAX_ITERATIONS=6
+AGENT_SESSION_TTL_DAYS=7
+AGENT_CACHE_TTL_SECONDS=120
+AGENT_RATE_LIMIT_PER_MINUTE=30
+AGENT_STREAM=true
+AGENT_INTENT_CLASSIFIER=true
+AGENT_PROACTIVE_ALERTS=true
+AGENT_VOICE_INPUT=true
+```
+
 ## Installation
 
-Run these commands from the project root:
+From the project root:
 
 ```powershell
 npm install
@@ -104,119 +191,157 @@ npm install --prefix server
 npm install --prefix client
 ```
 
-Or use:
+Or use the helper command:
 
 ```powershell
 npm run install:all
 ```
 
-## Run Project
+## Running the Project
 
-Start both frontend and backend:
+### Recommended: Single Command Development Mode
+
+The root development command starts:
+
+- local MongoDB if it is not already running
+- the backend server
+- the frontend dev server
+
+Run:
 
 ```powershell
 npm run dev
 ```
 
-If combined dev command gives environment/process issue, run separately:
+This uses:
 
-Backend:
+- [package.json](D:\final-project\bug-tracking-system\package.json)
+- [scripts/dev-server.js](D:\final-project\bug-tracking-system\scripts\dev-server.js)
+
+The development launcher expects:
+
+- MongoDB executable at `C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe`
+- writable MongoDB data directory at `D:\mongodb-data`
+
+### Manual Run Mode
+
+If you prefer to run services separately:
+
+#### Backend
+
+```powershell
+npm run start --prefix server
+```
+
+or during development:
 
 ```powershell
 npm run dev --prefix server
 ```
 
-Frontend:
+#### Frontend
 
 ```powershell
 npm run dev --prefix client
 ```
 
-## URLs
+#### MongoDB Manual Fallback
+
+If your MongoDB Windows service is unavailable, run MongoDB manually:
+
+```powershell
+mkdir D:\mongodb-data -ErrorAction SilentlyContinue
+& "C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe" --dbpath "D:\mongodb-data"
+```
+
+Keep that window open while using the application.
+
+## Application URLs
 
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:5000/api`
 
 ## Seed Commands
 
-Initial admin:
+### Seed Admin Account
 
 ```powershell
 npm run seed:admin --prefix server
 ```
 
-Demo role users:
+### Seed Demo Role Accounts
 
 ```powershell
 npm run seed:demo-users --prefix server
 ```
 
-Sample project and sample issues:
+### Seed Sample Project and Issue Data
 
 ```powershell
 npm run seed:sample-data --prefix server
 ```
 
-## Demo Login Credentials
+## Demo Credentials
 
-- Admin
-  - Email: `admin@example.com`
-  - Password: `Admin@12345`
-- Manager
-  - Email: `manager@example.com`
-  - Password: `Manager@123`
-- QA Engineer
-  - Email: `qa@example.com`
-  - Password: `Qa@123456`
-- Developer
-  - Email: `developer@example.com`
-  - Password: `Developer@123`
+### Administrator
 
-## MongoDB Data Kahan Save Ho Raha Hai
+- Email: `admin@example.com`
+- Password: `Admin@12345`
 
-Current connection string:
+### Manager
+
+- Email: `manager@example.com`
+- Password: `Manager@123`
+
+### QA Engineer
+
+- Email: `qa@example.com`
+- Password: `Qa@123456`
+
+### Developer
+
+- Email: `developer@example.com`
+- Password: `Developer@123`
+
+## Database Notes
+
+### Default MongoDB Connection
 
 ```text
 mongodb://127.0.0.1:27017/bug-tracking-system
 ```
 
-Iska matlab:
-
-- MongoDB server local machine par chal raha hai
-- Database ka naam hai: `bug-tracking-system`
-
-Collections normally ye hongi:
+### Main Collections
 
 - `users`
 - `projects`
 - `bugs`
+- `agentconversations`
+- `auditlogs`
 
-## MongoDB Data Kaise Dekhen
+Additional collections may appear for notifications or future agent features depending on usage.
 
-### Option 1: MongoDB Compass
+## Viewing Data in MongoDB
 
-Sab se easy method:
+### MongoDB Compass
 
-1. MongoDB Compass install/open karo
-2. Connection string paste karo:
+1. Open MongoDB Compass
+2. Connect with:
 
 ```text
 mongodb://127.0.0.1:27017
 ```
 
-3. Connect karo
-4. Left side mein database `bug-tracking-system` open karo
-5. Uske andar `users`, `projects`, `bugs` collections dekh lo
+3. Open the `bug-tracking-system` database
+4. Browse the collections
 
-### Option 2: mongosh
-
-PowerShell mein:
+### mongosh
 
 ```powershell
 mongosh
 ```
 
-Phir:
+Then:
 
 ```javascript
 show dbs
@@ -227,54 +352,271 @@ db.projects.find().pretty()
 db.bugs.find().pretty()
 ```
 
-### Option 3: VS Code MongoDB Extension
+## Useful MongoDB Queries
 
-1. VS Code mein `MongoDB for VS Code` extension install karo
-2. New connection banao
-3. URI do:
-
-```text
-mongodb://127.0.0.1:27017
-```
-
-4. `bug-tracking-system` database open karke collections inspect karo
-
-## Helpful Queries
-
-All users:
+### View All Users
 
 ```javascript
 db.users.find().pretty()
 ```
 
-All projects:
+### View All Projects
 
 ```javascript
 db.projects.find().pretty()
 ```
 
-All bugs:
+### View All Bugs
 
 ```javascript
 db.bugs.find().pretty()
 ```
 
-Only admin user:
+### View Admin Account
 
 ```javascript
 db.users.find({ email: "admin@example.com" }).pretty()
 ```
 
-Only sample project:
+### View Sample Project
 
 ```javascript
 db.projects.find({ title: "Apollo Platform Revamp" }).pretty()
 ```
 
+## Backend Architecture
+
+The backend follows a structured MVC-style organization.
+
+### Models
+
+- `User`
+- `Project`
+- `Bug`
+- `AgentConversation`
+- `AuditLog`
+
+### Controllers
+
+- authentication
+- users
+- projects
+- bugs
+- dashboard
+- AI agent
+
+### Middleware
+
+- JWT verification
+- role authorization
+- global error handling
+
+### Services
+
+- token generation and verification
+- file upload rules
+- AI agent orchestration
+- caching
+- alerting
+- suggestion engine
+
+## Frontend Architecture
+
+### Layout and UI
+
+- shared MUI layout shell
+- responsive sidebar and app bar
+- dialogs for create and edit flows
+- reusable chips, empty states, and skeleton loaders
+
+### Pages
+
+- Login
+- Dashboard
+- Projects
+- Project Details
+- Issues
+- Users
+- AI Agent
+- AI Audit
+
+### State and Session Handling
+
+- auth state stored in context
+- refresh-token based re-authentication
+- session expiry handling with redirect
+- snackbar notifications via global notification context
+
+## Bug Workflow
+
+### Issue Types
+
+- `bug`
+- `feature`
+
+### Status Flow
+
+#### Bug
+
+- `new`
+- `started`
+- `resolved`
+- `reopened`
+
+#### Feature
+
+- `new`
+- `started`
+- `completed`
+- `reopened`
+
+### Workflow Behavior
+
+- QA or admin creates an issue
+- the issue belongs to a project
+- the issue may be assigned to a developer
+- the developer updates status
+- QA can reopen if the issue persists
+- comments and activity support the feedback loop
+
+## File Upload Rules
+
+Screenshot uploads are handled with Multer and restricted to:
+
+- `.png`
+- `.gif`
+
+When an issue is deleted, its screenshot file is also removed from the server.
+
+## Dashboard Analytics
+
+The dashboard is role-aware and may include:
+
+- total issues
+- total projects
+- open issues
+- resolved work
+- issue type distribution
+- issue status distribution
+- bugs per project
+- recent issue activity
+
+## AI Agent Setup and Architecture
+
+### What BugBot Does
+
+BugBot is an embedded AI assistant for the platform. It can:
+
+- answer project and issue questions
+- inspect role-scoped bugs and projects
+- stream replies in the frontend
+- maintain session context
+- surface proactive alerts
+- log every important tool action for auditing
+
+### Important Backend Agent Files
+
+- [server/src/services/intentClassifier.js](D:\final-project\bug-tracking-system\server\src\services\intentClassifier.js)
+- [server/src/services/agentCache.js](D:\final-project\bug-tracking-system\server\src\services\agentCache.js)
+- [server/src/services/suggestionEngine.js](D:\final-project\bug-tracking-system\server\src\services\suggestionEngine.js)
+- [server/src/services/alertService.js](D:\final-project\bug-tracking-system\server\src\services\alertService.js)
+- [server/src/services/agentTools.js](D:\final-project\bug-tracking-system\server\src\services\agentTools.js)
+- [server/src/services/agentService.js](D:\final-project\bug-tracking-system\server\src\services\agentService.js)
+- [server/src/utils/streamHelpers.js](D:\final-project\bug-tracking-system\server\src\utils\streamHelpers.js)
+- [server/src/models/AgentConversation.js](D:\final-project\bug-tracking-system\server\src\models\AgentConversation.js)
+- [server/src/models/AuditLog.js](D:\final-project\bug-tracking-system\server\src\models\AuditLog.js)
+
+### Important Frontend Agent Files
+
+- [client/src/hooks/useAgentChat.js](D:\final-project\bug-tracking-system\client\src\hooks\useAgentChat.js)
+- [client/src/components/BugBotRenderer.jsx](D:\final-project\bug-tracking-system\client\src\components\BugBotRenderer.jsx)
+- [client/src/components/AgentChat.jsx](D:\final-project\bug-tracking-system\client\src\components\AgentChat.jsx)
+- [client/src/pages/AgentPage.jsx](D:\final-project\bug-tracking-system\client\src\pages\AgentPage.jsx)
+- [client/src/pages/AuditPage.jsx](D:\final-project\bug-tracking-system\client\src\pages\AuditPage.jsx)
+
+### AI Routes
+
+- `POST /api/agent/chat`
+- `GET /api/agent/sessions`
+- `DELETE /api/agent/sessions/:id`
+- `GET /api/agent/audit`
+- `GET /api/agent/audit/stats`
+- `GET /api/agent/health`
+
+### Agent Streaming Events
+
+BugBot can emit:
+
+- `token`
+- `tool_start`
+- `tool_end`
+- `suggestions`
+- `alert`
+- `done`
+- `error`
+
+### Agent Security Model
+
+- JWT-protected routes
+- rate limiting per user
+- RBAC checked in every tool
+- input sanitization
+- prompt injection blocking
+- audit logging for both success and failure
+
+### Agent Performance Model
+
+- quick local intent detection
+- cached deterministic responses
+- parallel database aggregation where useful
+- streaming output for faster perceived response time
+
+## Testing the AI Agent
+
+1. Start the full project:
+
+```powershell
+npm run dev
+```
+
+2. Log in to the frontend
+3. Open the AI Agent page
+4. Try prompts such as:
+
+```text
+Show my projects
+Show my bugs
+Show dashboard stats
+Find bugs login error
+Show overdue issues
+```
+
+5. As admin, open the AI Audit page to review tool activity
+
 ## Notes
 
-- Server will not start if MongoDB connection fails
-- Passwords are hashed with bcrypt
-- Refresh token is stored in HTTP-only cookie
-- Uploaded issue screenshots are deleted from disk when issue is deleted or screenshot is replaced
-- Issue creation requires a project, and developer assignment must belong to the selected project
+- The backend will not start if MongoDB is unavailable
+- The root `npm run dev` command depends on your local MongoDB executable path
+- Passwords are never stored in plaintext
+- Refresh tokens are stored in HTTP-only cookies
+- Project and issue permissions are enforced per role
+- Some large frontend bundles still produce Vite chunk-size warnings, but the production build completes successfully
+
+## Current Status
+
+This repository currently includes:
+
+- a working role-based MERN bug tracker
+- a Material UI based frontend redesign
+- seeded demo users and sample data
+- improved session handling and refresh recovery
+- AI assistant routes and UI
+- admin audit view for AI activity
+
+Good next steps for future improvement include:
+
+- code splitting for bundle reduction
+- richer notification history
+- saved filters and advanced issue search
+- kanban issue board
+- profile and settings pages

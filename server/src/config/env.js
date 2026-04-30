@@ -24,6 +24,18 @@ const env = {
   seedAdminName: process.env.SEED_ADMIN_NAME,
   seedAdminEmail: process.env.SEED_ADMIN_EMAIL,
   seedAdminPassword: process.env.SEED_ADMIN_PASSWORD,
+  openAiApiKey: process.env.OPENAI_API_KEY,
+  agentModel: process.env.AGENT_MODEL || "gpt-4o",
+  agentMaxTokens: process.env.AGENT_MAX_TOKENS || "1000",
+  agentTemperature: process.env.AGENT_TEMPERATURE || "0",
+  agentMaxIterations: process.env.AGENT_MAX_ITERATIONS || "6",
+  agentSessionTtlDays: process.env.AGENT_SESSION_TTL_DAYS || "7",
+  agentCacheTtlSeconds: process.env.AGENT_CACHE_TTL_SECONDS || "120",
+  agentRateLimitPerMinute: process.env.AGENT_RATE_LIMIT_PER_MINUTE || "30",
+  agentStream: process.env.AGENT_STREAM || "true",
+  agentIntentClassifier: process.env.AGENT_INTENT_CLASSIFIER || "true",
+  agentProactiveAlerts: process.env.AGENT_PROACTIVE_ALERTS || "true",
+  agentVoiceInput: process.env.AGENT_VOICE_INPUT || "true",
 };
 
 const requiredKeys = [

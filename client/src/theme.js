@@ -1,113 +1,95 @@
 import { alpha, createTheme } from "@mui/material/styles";
 
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#1f6f78",
-    },
-    secondary: {
-      main: "#d97706",
-    },
-    error: {
-      main: "#c2410c",
-    },
-    success: {
-      main: "#2f855a",
-    },
-    background: {
-      default: "#f7f5f1",
-      paper: "#ffffff",
-    },
+const buildPalette = (mode) => ({
+  mode,
+  primary: { main: "#1976D2" },
+  secondary: { main: "#9C27B0" },
+  error: { main: "#D32F2F" },
+  warning: { main: "#ED6C02" },
+  success: { main: "#2E7D32" },
+  background: {
+    default: mode === "light" ? "#F4F6F8" : "#0F172A",
+    paper: mode === "light" ? "#FFFFFF" : "#162033",
   },
-  shape: {
-    borderRadius: 18,
-  },
-  typography: {
-    fontFamily: `"Inter", "Segoe UI", sans-serif`,
-    h3: {
-      fontWeight: 800,
-      letterSpacing: "-0.03em",
-    },
-    h4: {
-      fontWeight: 800,
-      letterSpacing: "-0.03em",
-    },
-    h5: {
-      fontWeight: 700,
-    },
-    h6: {
-      fontWeight: 700,
-    },
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        body: {
-          background:
-            "radial-gradient(circle at top left, rgba(31,111,120,0.15), transparent 24%), radial-gradient(circle at bottom right, rgba(217,119,6,0.16), transparent 28%), #f7f5f1",
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 24,
-          boxShadow: "0 16px 48px rgba(15, 23, 42, 0.08)",
-          border: "1px solid rgba(15, 23, 42, 0.06)",
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: 24,
-          backgroundImage: "none",
-        },
-      },
-    },
-    MuiButton: {
-      defaultProps: {
-        disableElevation: true,
-      },
-      styleOverrides: {
-        root: {
-          borderRadius: 14,
-          textTransform: "none",
-          fontWeight: 700,
-          paddingInline: 18,
-        },
-      },
-    },
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          border: "none",
-          background: alpha("#ffffff", 0.88),
-          backdropFilter: "blur(14px)",
-        },
-      },
-    },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          background: alpha("#ffffff", 0.82),
-          color: "#16202a",
-          backdropFilter: "blur(14px)",
-          boxShadow: "0 10px 40px rgba(15, 23, 42, 0.08)",
-          border: "1px solid rgba(15, 23, 42, 0.06)",
-        },
-      },
-    },
-    MuiTableCell: {
-      styleOverrides: {
-        head: {
-          fontWeight: 700,
-          color: "#334155",
-        },
-      },
-    },
+  text: {
+    primary: mode === "light" ? "#0F172A" : "#F8FAFC",
+    secondary: mode === "light" ? "#475569" : "#CBD5E1",
   },
 });
 
-export default theme;
+export function getAppTheme(mode = "light") {
+  const palette = buildPalette(mode);
+
+  return createTheme({
+    palette,
+    shape: {
+      borderRadius: 10,
+    },
+    typography: {
+      fontFamily: '"Inter", "Roboto", sans-serif',
+      h4: {
+        fontWeight: 700,
+        letterSpacing: "-0.02em",
+      },
+      h5: {
+        fontWeight: 700,
+      },
+      h6: {
+        fontWeight: 700,
+      },
+      button: {
+        fontWeight: 700,
+        textTransform: "none",
+      },
+    },
+    shadows: [
+      "none",
+      "0px 2px 8px rgba(15, 23, 42, 0.05)",
+      "0px 8px 20px rgba(15, 23, 42, 0.07)",
+      "0px 12px 28px rgba(15, 23, 42, 0.08)",
+      "0px 18px 40px rgba(15, 23, 42, 0.10)",
+      "0px 24px 56px rgba(15, 23, 42, 0.12)",
+      ...Array(19).fill("0px 24px 56px rgba(15, 23, 42, 0.12)"),
+    ],
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            background:
+              mode === "light"
+                ? "radial-gradient(circle at top left, rgba(25,118,210,0.10), transparent 20%), radial-gradient(circle at bottom right, rgba(156,39,176,0.08), transparent 20%), #F4F6F8"
+                : "radial-gradient(circle at top left, rgba(25,118,210,0.16), transparent 20%), radial-gradient(circle at bottom right, rgba(156,39,176,0.12), transparent 20%), #0F172A",
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: "none",
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            border: `1px solid ${alpha(palette.text.primary, mode === "light" ? 0.06 : 0.12)}`,
+            boxShadow: "0 16px 40px rgba(15, 23, 42, 0.08)",
+          },
+        },
+      },
+      MuiButton: {
+        defaultProps: {
+          disableElevation: true,
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            boxShadow: "0 8px 20px rgba(15, 23, 42, 0.08)",
+            backdropFilter: "blur(12px)",
+          },
+        },
+      },
+    },
+  });
+}

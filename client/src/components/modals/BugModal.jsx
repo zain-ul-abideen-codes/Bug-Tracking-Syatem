@@ -1,26 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
-import { Grid, TextField } from "@mui/material";
-import Modal from "../common/Modal";
-import InputField from "../common/InputField";
-import SelectField from "../common/SelectField";
-import Button from "../common/Button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import BugReportRoundedIcon from "@mui/icons-material/BugReportRounded";
+import {
+  Alert,
+  Autocomplete,
+  Avatar,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  IconButton,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers";
+import dayjs from "dayjs";
+import { Controller, useForm } from "react-hook-form";
 
 const statusByType = {
-  bug: [
-    { value: "new", label: "New" },
-    { value: "started", label: "Started" },
-    { value: "resolved", label: "Resolved" },
-    { value: "reopened", label: "Reopened" },
-  ],
-  feature: [
-    { value: "new", label: "New" },
-    { value: "started", label: "Started" },
-    { value: "completed", label: "Completed" },
-    { value: "reopened", label: "Reopened" },
-  ],
+  bug: ["new", "started", "resolved", "reopened"],
+  feature: ["new", "started", "completed", "reopened"],
 };
 
 export default function BugModal({
+  open,
+  loading,
   issue,
   projects,
   developers,
@@ -29,227 +42,316 @@ export default function BugModal({
   onClose,
   onSubmit,
 }) {
-  const [form, setForm] = useState({
-    title: issue?.title || "",
-    type: issue?.type || "bug",
-    status: issue?.status || "new",
-    project: issue?.project?._id || "",
-    description: issue?.description || "",
-    deadline: issue?.deadline ? issue.deadline.slice(0, 10) : "",
-    assignedDeveloper: issue?.assignedDeveloper?._id || "",
-    screenshot: null,
-    comment: "",
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const fileRef = useRef(null);
+  const [fileError, setFileError] = useState("");
+  const [preview, setPreview] = useState(issue?.screenshot || "");
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors, isValid },
+  } = useForm({
+    mode: "onChange",
+    defaultValues: {
+      title: issue?.title || "",
+      type: issue?.type || "bug",
+      status: issue?.status || "new",
+      project: issue?.project || null,
+      assignedDeveloper: issue?.assignedDeveloper || null,
+      deadline: issue?.deadline ? dayjs(issue.deadline) : null,
+      description: issue?.description || "",
+      screenshot: null,
+    },
   });
-  const [submitting, setSubmitting] = useState(false);
-
-  const selectedProject = projects.find((project) => project._id === form.project);
-  const availableDevelopers =
-    form.project && selectedProject
-      ? developers.filter((developer) =>
-          selectedProject.developers?.some((member) => member._id === developer._id)
-        )
-      : developers;
-  const statusOptions =
-    role === "developer"
-      ? statusByType[form.type].filter((option) => option.value !== "reopened")
-      : statusByType[form.type];
-
-  const errors = useMemo(() => {
-    const nextErrors = {};
-    if (!form.title.trim() && role !== "developer") nextErrors.title = "Title is required.";
-    if (!form.project && role !== "developer") nextErrors.project = "Project is required.";
-    if (!form.status) nextErrors.status = "Status is required.";
-    if (form.screenshot && !["image/png", "image/gif"].includes(form.screenshot.type)) {
-      nextErrors.screenshot = "Only PNG and GIF files are allowed.";
-    }
-    return nextErrors;
-  }, [form, role]);
 
   useEffect(() => {
-    if (
-      form.assignedDeveloper &&
-      !availableDevelopers.some((developer) => developer._id === form.assignedDeveloper)
-    ) {
-      setForm((current) => ({ ...current, assignedDeveloper: "" }));
-    }
-  }, [form.assignedDeveloper, availableDevelopers]);
+    reset({
+      title: issue?.title || "",
+      type: issue?.type || "bug",
+      status: issue?.status || "new",
+      project: issue?.project || null,
+      assignedDeveloper: issue?.assignedDeveloper || null,
+      deadline: issue?.deadline ? dayjs(issue.deadline) : null,
+      description: issue?.description || "",
+      screenshot: null,
+    });
+    setPreview(issue?.screenshot || "");
+    setFileError("");
+  }, [issue, open, reset]);
 
-  const handleChange = (event) => {
-    const { name, value, files } = event.target;
-    setForm((current) => ({
-      ...current,
-      [name]: files ? files[0] : value,
-      ...(name === "type" ? { status: "new" } : {}),
-    }));
+  const selectedType = watch("type");
+  const selectedProject = watch("project");
+
+  useEffect(() => {
+    if (!statusByType[selectedType]?.includes(watch("status"))) {
+      setValue("status", statusByType[selectedType][0], { shouldValidate: true });
+    }
+  }, [selectedType, setValue, watch]);
+
+  const availableDevelopers = useMemo(() => {
+    if (!selectedProject?.developers?.length) {
+      return developers;
+    }
+
+    const allowedIds = new Set(selectedProject.developers.map((member) => member._id));
+    return developers.filter((member) => allowedIds.has(member._id));
+  }, [developers, selectedProject]);
+
+  const handleFileSelection = (file) => {
+    if (!file) {
+      return;
+    }
+
+    const allowedTypes = ["image/png", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      setFileError("Only .png and .gif files are allowed.");
+      return;
+    }
+
+    setFileError("");
+    setValue("screenshot", file, { shouldValidate: true });
+    setPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (Object.keys(errors).length) return;
+  const buildPayload = (values) => {
+    const isDeveloper = role === "developer";
 
-    try {
-      setSubmitting(true);
-
-      if (role === "developer") {
-        await onSubmit({ status: form.status });
-        return;
-      }
-
-      const payload = new FormData();
-      Object.entries(form).forEach(([key, value]) => {
-        if (value !== null && value !== "") {
-          payload.append(key, value);
-        }
-      });
-      await onSubmit(payload);
-    } finally {
-      setSubmitting(false);
+    if (isDeveloper) {
+      return {
+        status: values.status,
+      };
     }
+
+    const payload = new FormData();
+    payload.append("title", values.title);
+    payload.append("type", values.type);
+    payload.append("status", values.status);
+    payload.append("project", values.project?._id || "");
+    payload.append("description", values.description || "");
+    if (values.assignedDeveloper?._id) {
+      payload.append("assignedDeveloper", values.assignedDeveloper._id);
+    }
+    if (values.deadline) {
+      payload.append("deadline", values.deadline.toISOString());
+    }
+    if (values.screenshot) {
+      payload.append("screenshot", values.screenshot);
+    }
+    return payload;
   };
+
+  const isDeveloperOnly = role === "developer";
 
   return (
-    <Modal
-      title={role === "developer" ? "Update Issue Status" : issue ? "Edit Issue" : "Create Issue"}
-      onClose={onClose}
-    >
-      <form className="modal-form" onSubmit={handleSubmit}>
-        {submitError ? <p className="server-error">{submitError}</p> : null}
-        {role !== "developer" ? (
-          <>
-            <InputField label="Title" name="title" value={form.title} onChange={handleChange} error={errors.title} />
-            <SelectField
-              label="Type"
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-              options={[
-                { value: "bug", label: "Bug" },
-                { value: "feature", label: "Feature" },
-              ]}
-            />
-            <SelectField
-              label="Project"
-              name="project"
-              value={form.project}
-              onChange={handleChange}
-              options={projects.map((project) => ({ value: project._id, label: project.title }))}
-              error={errors.project}
-            />
-            {!projects.length ? (
-              <p className="hint-text">No project available yet. Create a project first, then you can raise issues here.</p>
-            ) : null}
-            <TextField
-              label="Description"
-              name="description"
-              multiline
-              minRows={4}
-              value={form.description}
-              onChange={handleChange}
-            />
-            <Grid container spacing={2}>
+    <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
+      <DialogTitle sx={{ pr: 7 }}>
+        {issue ? (isDeveloperOnly ? "Update Issue Status" : "Edit Issue") : "Create Issue"}
+        <IconButton sx={{ position: "absolute", right: 8, top: 8 }} onClick={onClose} disabled={loading}>
+          <CloseRoundedIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 0.5 }}>
+          {!isDeveloperOnly ? (
+            <>
               <Grid item xs={12} md={6}>
-                <InputField label="Deadline" name="deadline" type="date" value={form.deadline} onChange={handleChange} />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <SelectField
-                  label="Assigned Developer"
-                  name="assignedDeveloper"
-                  value={form.assignedDeveloper}
-                  onChange={handleChange}
-                  options={availableDevelopers.map((user) => ({ value: user._id, label: user.name }))}
+                <Controller
+                  name="title"
+                  control={control}
+                  rules={{ required: "Title is required." }}
+                  render={({ field }) => <TextField {...field} fullWidth label="Title" error={Boolean(errors.title)} helperText={errors.title?.message} />}
                 />
               </Grid>
-            </Grid>
-            {form.project && !availableDevelopers.length ? (
-              <p className="hint-text">This project has no assigned developers yet. Add a developer in the project screen or leave assignee empty.</p>
-            ) : null}
-            <label className="field">
-              <span>Screenshot (.png or .gif)</span>
-              <input className="field-input" type="file" name="screenshot" accept=".png,.gif" onChange={handleChange} />
-              {errors.screenshot ? <small className="field-error">{errors.screenshot}</small> : null}
-            </label>
-          </>
-        ) : null}
-        <SelectField
-          label="Status"
-          name="status"
-          value={form.status}
-          onChange={handleChange}
-          options={statusOptions}
-          error={errors.status}
-        />
-        {issue ? (
-          <label className="field">
-            <span>{role === "developer" ? "Developer Note" : "Comment / QA Feedback"}</span>
-            <textarea
-              className="field-input textarea"
-              name="comment"
-              value={form.comment}
-              onChange={handleChange}
-              placeholder="Write what changed, what still fails, or why this issue was reopened."
+              <Grid item xs={12} md={6}>
+                <Controller
+                  name="type"
+                  control={control}
+                  rules={{ required: "Type is required." }}
+                  render={({ field }) => (
+                    <TextField {...field} select fullWidth label="Type">
+                      <MenuItem value="bug">
+                        <Stack direction="row" spacing={1} alignItems="center"><BugReportRoundedIcon fontSize="small" /> <span>Bug</span></Stack>
+                      </MenuItem>
+                      <MenuItem value="feature">
+                        <Stack direction="row" spacing={1} alignItems="center"><AutoAwesomeRoundedIcon fontSize="small" /> <span>Feature</span></Stack>
+                      </MenuItem>
+                    </TextField>
+                  )}
+                />
+              </Grid>
+            </>
+          ) : null}
+
+          <Grid item xs={12} md={isDeveloperOnly ? 12 : 6}>
+            <Controller
+              name="status"
+              control={control}
+              rules={{ required: "Status is required." }}
+              render={({ field }) => (
+                <TextField {...field} select fullWidth label="Status">
+                  {statusByType[selectedType].map((status) => (
+                    <MenuItem key={status} value={status} sx={{ textTransform: "capitalize" }}>
+                      {status}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             />
-          </label>
-        ) : null}
-        {issue ? (
-          <div className="issue-detail-grid">
-            <section className="issue-detail-panel">
-              <h4>Comments</h4>
-              {issue.comments?.length ? (
-                <div className="thread-list">
-                  {[...issue.comments]
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                    .map((comment) => (
-                      <article className="thread-card" key={comment._id}>
-                        <div className="thread-meta">
-                          <strong>{comment.author?.name || "Unknown user"}</strong>
-                          <span>{new Date(comment.createdAt).toLocaleString()}</span>
-                        </div>
-                        <p>{comment.body}</p>
-                      </article>
-                    ))}
-                </div>
-              ) : (
-                <p className="hint-text">No comments yet. Use comments to explain fixes, retest notes, or reopen reasons.</p>
-              )}
-            </section>
-            <section className="issue-detail-panel">
-              <h4>Activity Timeline</h4>
-              {issue.activity?.length ? (
-                <div className="timeline-list">
-                  {[...issue.activity]
-                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                    .map((entry) => (
-                      <article className="timeline-item" key={entry._id}>
-                        <div className="timeline-dot" />
-                        <div>
-                          <strong>{entry.actor?.name || "Unknown user"}</strong>
-                          <p>{entry.message}</p>
-                          <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                        </div>
-                      </article>
-                    ))}
-                </div>
-              ) : (
-                <p className="hint-text">Activity will appear here as the issue moves through the workflow.</p>
-              )}
-            </section>
-          </div>
-        ) : null}
-        <div className="modal-actions">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={submitting || (!projects.length && role !== "developer")}>
-            {submitting
-              ? "Saving..."
-              : role === "developer"
-                ? "Update Status"
-                : issue
-                  ? "Save Changes"
-                  : "Create Issue"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          </Grid>
+
+          {!isDeveloperOnly ? (
+            <>
+              <Grid item xs={12} md={6}>
+                <Controller
+                  name="project"
+                  control={control}
+                  rules={{ required: "Project is required." }}
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={projects}
+                      value={field.value}
+                      onChange={(_, value) => field.onChange(value)}
+                      getOptionLabel={(option) => option?.title || ""}
+                      slotProps={{
+                        paper: {
+                          sx: {
+                            minWidth: 320,
+                          },
+                        },
+                      }}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              whiteSpace: "normal",
+                              wordBreak: "keep-all",
+                              overflowWrap: "break-word",
+                              lineHeight: 1.35,
+                              py: 0.5,
+                            }}
+                          >
+                            {option.title}
+                          </Typography>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Project"
+                          fullWidth
+                          error={Boolean(errors.project)}
+                          helperText={errors.project?.message}
+                        />
+                      )}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Controller
+                  name="assignedDeveloper"
+                  control={control}
+                  render={({ field }) => (
+                    <Autocomplete
+                      options={availableDevelopers}
+                      value={field.value}
+                      onChange={(_, value) => field.onChange(value)}
+                      getOptionLabel={(option) => option?.name || ""}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
+                            <Avatar sx={{ width: 28, height: 28, flexShrink: 0 }}>{option.name?.charAt(0)}</Avatar>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                whiteSpace: "normal",
+                                wordBreak: "break-word",
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              {option.name}
+                            </Typography>
+                          </Stack>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Assigned Developer"
+                          helperText={selectedProject ? "Only developers assigned to the selected project are shown." : "Select a developer to take ownership of this issue."}
+                        />
+                      )}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Controller
+                  name="deadline"
+                  control={control}
+                  render={({ field }) => <DatePicker label="Deadline" value={field.value} onChange={field.onChange} slotProps={{ textField: { fullWidth: true } }} />}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => <TextField {...field} fullWidth multiline minRows={4} label="Description" />}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Box
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    handleFileSelection(event.dataTransfer.files?.[0]);
+                  }}
+                  sx={{
+                    p: 2.5,
+                    border: (theme) => `2px dashed ${theme.palette.divider}`,
+                    borderRadius: 2.5,
+                    textAlign: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Stack spacing={1.5} alignItems="center">
+                    <ImageRoundedIcon color="primary" sx={{ fontSize: 32 }} />
+                    <Typography fontWeight={600}>Upload Screenshot</Typography>
+                    <Typography color="text.secondary">Drag and drop a .png or .gif file, or click to browse.</Typography>
+                    {preview ? (
+                      <Box component="img" src={preview} alt="Screenshot preview" sx={{ maxHeight: 120, borderRadius: 2 }} />
+                    ) : null}
+                  </Stack>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    hidden
+                    accept=".png,.gif,image/png,image/gif"
+                    onChange={(event) => handleFileSelection(event.target.files?.[0])}
+                  />
+                </Box>
+                {fileError ? <Alert severity="error" sx={{ mt: 1.5 }}>{fileError}</Alert> : null}
+              </Grid>
+            </>
+          ) : null}
+        </Grid>
+        {submitError ? <Alert severity="error" sx={{ mt: 2 }}>{submitError}</Alert> : null}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 3 }}>
+        <Button variant="outlined" onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button variant="contained" disabled={!isValid || loading || Boolean(fileError)} onClick={handleSubmit((values) => onSubmit(buildPayload(values)))}>
+          {loading ? "Saving..." : "Save Issue"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
