@@ -5,7 +5,7 @@ export default function Modal({ title, children, onClose }) {
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
           <span>{title}</span>
           <IconButton onClick={onClose}>
             <CloseRoundedIcon />

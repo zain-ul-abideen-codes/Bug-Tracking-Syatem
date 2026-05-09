@@ -1,7 +1,9 @@
 import api from "./axios";
 
-export const getProjects = async () => {
-  const { data } = await api.get("/projects");
+export const getProjects = async (token) => {
+  const { data } = await api.get("/projects", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   return data.projects;
 };
 

@@ -1,7 +1,9 @@
 import api from "./axios";
 
-export const getUsers = async () => {
-  const { data } = await api.get("/users");
+export const getUsers = async (token) => {
+  const { data } = await api.get("/users", {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   return data.users;
 };
 

@@ -54,7 +54,7 @@ export default function UserModal({ user, open, loading, onClose, onSubmit }) {
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="name"
               control={control}
@@ -64,7 +64,7 @@ export default function UserModal({ user, open, loading, onClose, onSubmit }) {
               )}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="email"
               control={control}
@@ -81,7 +81,7 @@ export default function UserModal({ user, open, loading, onClose, onSubmit }) {
             />
           </Grid>
           {!user ? (
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Controller
                 name="password"
                 control={control}
@@ -95,7 +95,7 @@ export default function UserModal({ user, open, loading, onClose, onSubmit }) {
               />
             </Grid>
           ) : null}
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               name="role"
               control={control}

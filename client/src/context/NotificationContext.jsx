@@ -1,8 +1,16 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Alert, Slide, Snackbar } from "@mui/material";
+
+const HISTORY_KEY = "bugtracker-pro-notification-history";
+const SILENT_MESSAGES = new Set(["Authentication required."]);
 
 const NotificationContext = createContext({
   notify: () => {},
+  history: [],
+  unreadCount: 0,
+  markAllAsRead: () => {},
+  removeNotification: () => {},
+  clearHistory: () => {},
 });
 
 function Transition(props) {
@@ -10,19 +18,51 @@ function Transition(props) {
 }
 
 export function NotificationProvider({ children }) {
+  const [history, setHistory] = useState(() => {
+    try {
+      const stored = localStorage.getItem(HISTORY_KEY);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return parsed.filter((entry) => !SILENT_MESSAGES.has(entry.message));
+    } catch (_error) {
+      return [];
+    }
+  });
   const [toast, setToast] = useState({
     open: false,
     message: "",
     severity: "info",
   });
 
+  useEffect(() => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }, [history]);
+
   const value = useMemo(
     () => ({
       notify: (message, severity = "info") => {
+        if (SILENT_MESSAGES.has(message)) {
+          return;
+        }
+
+        const nextEntry = {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          message,
+          severity,
+          createdAt: new Date().toISOString(),
+          read: false,
+        };
+        setHistory((current) => [nextEntry, ...current].slice(0, 50));
         setToast({ open: true, message, severity });
       },
+      history,
+      unreadCount: history.filter((entry) => !entry.read).length,
+      markAllAsRead: () =>
+        setHistory((current) => current.map((entry) => ({ ...entry, read: true }))),
+      removeNotification: (id) =>
+        setHistory((current) => current.filter((entry) => entry.id !== id)),
+      clearHistory: () => setHistory([]),
     }),
-    [],
+    [history],
   );
 
   return (

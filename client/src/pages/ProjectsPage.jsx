@@ -4,7 +4,6 @@ import {
   AvatarGroup,
   Box,
   Button,
-  Fab,
   Grid,
   IconButton,
   Paper,
@@ -31,7 +30,7 @@ import ProjectModal from "../components/modals/ProjectModal";
 import EmptyState from "../components/common/EmptyState";
 
 export default function ProjectsPage() {
-  const { user } = useAuth();
+  const { user, accessToken, loading: authLoading } = useAuth();
   const { notify } = useNotification();
   const [projects, setProjects] = useState([]);
   const [bugs, setBugs] = useState([]);
@@ -41,30 +40,47 @@ export default function ProjectsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [dialog, setDialog] = useState("");
+  const [error, setError] = useState("");
 
   const canManageProjects = ["administrator", "manager"].includes(user.role);
 
   const loadPage = async () => {
     try {
       setLoading(true);
+      setError("");
       const [projectData, bugData, userData] = await Promise.all([
-        getProjects(),
-        getBugs(),
-        canManageProjects ? getUsers() : Promise.resolve([]),
+        getProjects(accessToken),
+        getBugs(accessToken),
+        canManageProjects ? getUsers(accessToken) : Promise.resolve([]),
       ]);
       setProjects(projectData);
       setBugs(bugData);
       setUsers(userData);
     } catch (error) {
-      notify(error.response?.data?.message || "Unable to load projects.", "error");
+      const message = error.response?.data?.message || "Unable to load projects.";
+      setError(message);
+      if (error.response?.status !== 401 && message !== "Authentication required.") {
+        notify(message, "error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (authLoading) {
+      return undefined;
+    }
+
+    if (!accessToken) {
+      setLoading(false);
+      setError("Authentication required.");
+      return undefined;
+    }
+
     loadPage();
-  }, []);
+    return undefined;
+  }, [accessToken, authLoading]);
 
   const bugCountByProject = useMemo(() => {
     return bugs.reduce((accumulator, bug) => {
@@ -110,24 +126,37 @@ export default function ProjectsPage() {
     }
   };
 
-  if (loading) return <PageSkeleton cards={6} rows={0} />;
+  if (loading || authLoading) return <PageSkeleton cards={6} rows={0} />;
 
   return (
     <Stack spacing={3} className="page-fade-in">
       <PageHeader
         eyebrow="Workspace"
         title="Projects, ownership, and team alignment"
-        subtitle="Browse every delivery stream, see team assignments, and jump into detailed project views."
+        subtitle="Displays assigned projects along with their associated users."
+        action={canManageProjects ? (
+          <Button
+            variant="contained"
+            size="large"
+            startIcon={<AddRoundedIcon />}
+            onClick={() => { setSelectedProject(null); setDialog("project"); }}
+            sx={{ minWidth: 170 }}
+          >
+            Add Project
+          </Button>
+        ) : null}
       />
 
-      {!projects.length ? (
+      {error ? (
+        <EmptyState icon={FolderRoundedIcon} title="Projects unavailable" subtitle={error} />
+      ) : !projects.length ? (
         <EmptyState icon={FolderRoundedIcon} title="No projects yet" subtitle="Create the first project to start assigning QA engineers, developers, and issues." />
       ) : (
-        <Grid container spacing={2.5} alignItems="stretch">
+        <Grid container spacing={2.5} sx={{ alignItems: "stretch" }}>
           {projects.map((project) => {
             const teamMembers = [project.manager, ...(project.qaEngineers || []), ...(project.developers || [])].filter(Boolean);
             return (
-              <Grid key={project._id} item xs={12} sm={6} lg={4} sx={{ display: "flex" }}>
+              <Grid key={project._id} size={{ xs: 12, sm: 6, lg: 4 }} sx={{ display: "flex" }}>
                 <Paper
                   sx={{
                     p: 3,
@@ -138,7 +167,7 @@ export default function ProjectsPage() {
                   }}
                 >
                   <Stack spacing={2.5} sx={{ height: "100%" }}>
-                    <Stack direction="row" justifyContent="space-between" spacing={2}>
+                    <Stack direction="row" spacing={2} sx={{ justifyContent: "space-between" }}>
                       <Avatar sx={{ bgcolor: "primary.main", width: 54, height: 54 }}>
                         <FolderRoundedIcon />
                       </Avatar>
@@ -176,9 +205,7 @@ export default function ProjectsPage() {
                     <Stack
                       direction="row"
                       spacing={1.5}
-                      alignItems="flex-start"
-                      justifyContent="space-between"
-                      sx={{ minHeight: 74 }}
+                      sx={{ minHeight: 74, alignItems: "flex-start", justifyContent: "space-between" }}
                     >
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Typography variant="body2" color="text.secondary">Manager</Typography>
@@ -234,12 +261,6 @@ export default function ProjectsPage() {
           })}
         </Grid>
       )}
-
-      {canManageProjects ? (
-        <Fab color="primary" sx={{ position: "fixed", right: 28, bottom: 28 }} onClick={() => { setSelectedProject(null); setDialog("project"); }}>
-          <AddRoundedIcon />
-        </Fab>
-      ) : null}
 
       <ProjectModal
         open={dialog === "project"}

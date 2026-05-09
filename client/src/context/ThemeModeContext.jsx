@@ -8,6 +8,7 @@ const STORAGE_KEY = "bugtracker-pro-color-mode";
 const ThemeModeContext = createContext({
   mode: "light",
   toggleColorMode: () => {},
+  setColorMode: () => {},
 });
 
 export function ThemeModeProvider({ children }) {
@@ -22,6 +23,9 @@ export function ThemeModeProvider({ children }) {
       mode,
       toggleColorMode: () => {
         setMode((current) => (current === "light" ? "dark" : "light"));
+      },
+      setColorMode: (nextMode) => {
+        setMode(nextMode);
       },
     }),
     [mode],

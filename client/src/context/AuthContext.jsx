@@ -1,12 +1,13 @@
 import { createContext, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axios";
-import { loginRequest, logoutRequest, refreshRequest } from "../api/authApi";
+import { loginRequest, logoutRequest, meRequest, refreshRequest } from "../api/authApi";
 
 export const AuthContext = createContext(null);
 const AUTH_MESSAGE_KEY = "auth_message";
 const AUTH_REFRESH_LOCK_KEY = "auth_refresh_lock";
 const AUTH_REFRESH_WAIT_MS = 5000;
+const AUTH_ROUTES = ["/auth/login", "/auth/logout", "/auth/refresh", "/auth/me"];
 
 const parseJwtExpiry = (token) => {
   try {
@@ -38,6 +39,7 @@ const getRefreshLock = () => {
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [accessToken, setAccessToken] = useState(localStorage.getItem("accessToken"));
   const [user, setUser] = useState(
     localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null
@@ -57,6 +59,9 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("user");
   };
+
+  const isAuthRequest = (url = "") =>
+    AUTH_ROUTES.some((route) => url.includes(route));
 
   const handleSessionExpired = () => {
     clearSession();
@@ -98,6 +103,17 @@ export function AuthProvider({ children }) {
     localStorage.setItem("user", JSON.stringify(authUser));
     channelRef.current?.postMessage({ type: "session_updated", token, user: authUser });
     scheduleRefresh(token);
+  };
+
+  const validateStoredSession = async (token, authUser) => {
+    const response = await meRequest(token);
+    const nextUser = response?.user || authUser;
+    setAccessToken(token);
+    setUser(nextUser);
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("user", JSON.stringify(nextUser));
+    scheduleRefresh(token);
+    return nextUser;
   };
 
   const waitForSessionUpdate = () =>
@@ -202,7 +218,7 @@ export function AuthProvider({ children }) {
         if (
           error.response?.status === 401 &&
           !error.config._retry &&
-          !error.config.url?.includes("/auth/refresh")
+          !isAuthRequest(error.config.url)
         ) {
           error.config._retry = true;
           try {
@@ -226,6 +242,17 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      const hasStoredUser = Boolean(localStorage.getItem("user"));
+
+      if (location.pathname === "/login") {
+        localStorage.removeItem(AUTH_REFRESH_LOCK_KEY);
+        if (!accessToken) {
+          clearSession();
+        }
+        setLoading(false);
+        return;
+      }
+
       if (!accessToken) {
         try {
           await refreshSession();
@@ -249,7 +276,25 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      scheduleRefresh(accessToken);
+      try {
+        await validateStoredSession(accessToken, user);
+      } catch (_error) {
+        if (!hasStoredUser) {
+          clearSession();
+          setLoading(false);
+          return;
+        }
+
+        try {
+          await refreshSession();
+        } catch (_refreshError) {
+          clearSession();
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
       setLoading(false);
     };
 
@@ -259,7 +304,7 @@ export function AuthProvider({ children }) {
         clearTimeout(refreshTimerRef.current);
       }
     };
-  }, []);
+  }, [accessToken, location.pathname]);
 
   const login = async (credentials) => {
     const data = await loginRequest(credentials);

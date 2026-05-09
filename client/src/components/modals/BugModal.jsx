@@ -159,7 +159,7 @@ export default function BugModal({
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
           {!isDeveloperOnly ? (
             <>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
                   name="title"
                   control={control}
@@ -167,7 +167,7 @@ export default function BugModal({
                   render={({ field }) => <TextField {...field} fullWidth label="Title" error={Boolean(errors.title)} helperText={errors.title?.message} />}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
                   name="type"
                   control={control}
@@ -175,10 +175,10 @@ export default function BugModal({
                   render={({ field }) => (
                     <TextField {...field} select fullWidth label="Type">
                       <MenuItem value="bug">
-                        <Stack direction="row" spacing={1} alignItems="center"><BugReportRoundedIcon fontSize="small" /> <span>Bug</span></Stack>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}><BugReportRoundedIcon fontSize="small" /> <span>Bug</span></Stack>
                       </MenuItem>
                       <MenuItem value="feature">
-                        <Stack direction="row" spacing={1} alignItems="center"><AutoAwesomeRoundedIcon fontSize="small" /> <span>Feature</span></Stack>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}><AutoAwesomeRoundedIcon fontSize="small" /> <span>Feature</span></Stack>
                       </MenuItem>
                     </TextField>
                   )}
@@ -187,7 +187,7 @@ export default function BugModal({
             </>
           ) : null}
 
-          <Grid item xs={12} md={isDeveloperOnly ? 12 : 6}>
+          <Grid size={{ xs: 12, md: isDeveloperOnly ? 12 : 6 }}>
             <Controller
               name="status"
               control={control}
@@ -206,7 +206,7 @@ export default function BugModal({
 
           {!isDeveloperOnly ? (
             <>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
                   name="project"
                   control={control}
@@ -253,7 +253,7 @@ export default function BugModal({
                   )}
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <Controller
                   name="assignedDeveloper"
                   control={control}
@@ -265,7 +265,7 @@ export default function BugModal({
                       getOptionLabel={(option) => option?.name || ""}
                       renderOption={(props, option) => (
                         <li {...props}>
-                          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
+                          <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, width: "100%", alignItems: "center" }}>
                             <Avatar sx={{ width: 28, height: 28, flexShrink: 0 }}>{option.name?.charAt(0)}</Avatar>
                             <Typography
                               variant="body2"
@@ -291,21 +291,21 @@ export default function BugModal({
                   )}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
                   name="deadline"
                   control={control}
                   render={({ field }) => <DatePicker label="Deadline" value={field.value} onChange={field.onChange} slotProps={{ textField: { fullWidth: true } }} />}
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <Controller
                   name="description"
                   control={control}
                   render={({ field }) => <TextField {...field} fullWidth multiline minRows={4} label="Description" />}
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={12}>
                 <Box
                   role="button"
                   tabIndex={0}
@@ -323,7 +323,7 @@ export default function BugModal({
                     cursor: "pointer",
                   }}
                 >
-                  <Stack spacing={1.5} alignItems="center">
+                  <Stack spacing={1.5} sx={{ alignItems: "center" }}>
                     <ImageRoundedIcon color="primary" sx={{ fontSize: 32 }} />
                     <Typography fontWeight={600}>Upload Screenshot</Typography>
                     <Typography color="text.secondary">Drag and drop a .png or .gif file, or click to browse.</Typography>

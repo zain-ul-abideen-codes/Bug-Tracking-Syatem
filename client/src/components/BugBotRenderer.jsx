@@ -90,7 +90,7 @@ export default function BugBotRenderer({ content }) {
                         <Chip size="small" label={bug.status} color={["resolved", "completed"].includes(bug.status) ? "success" : bug.status === "started" ? "warning" : "default"} />
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                           <Avatar sx={{ width: 24, height: 24 }}>
                             {String(bug.assignee || "U").charAt(0)}
                           </Avatar>

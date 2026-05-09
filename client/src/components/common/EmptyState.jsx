@@ -17,7 +17,7 @@ export default function EmptyState({
         border: (theme) => `1px dashed ${theme.palette.divider}`,
       }}
     >
-      <Stack spacing={1.5} alignItems="center">
+      <Stack spacing={1.5} sx={{ alignItems: "center" }}>
         <Icon color="primary" sx={{ fontSize: 52 }} />
         <Typography variant="h6">{title}</Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 420 }}>

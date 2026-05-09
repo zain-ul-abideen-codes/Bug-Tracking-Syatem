@@ -613,10 +613,12 @@ This repository currently includes:
 - AI assistant routes and UI
 - admin audit view for AI activity
 
-Good next steps for future improvement include:
+## Future Enhancements
 
-- code splitting for bundle reduction
-- richer notification history
-- saved filters and advanced issue search
-- kanban issue board
-- profile and settings pages
+Recommended next steps for continued product and engineering improvement include:
+
+- Implementing code splitting and route-based lazy loading to reduce bundle size and improve initial page-load performance
+- Expanding the notifications system with richer history, read states, and in-app activity tracking
+- Adding saved filters, advanced issue search, and more powerful query combinations for faster issue discovery
+- Introducing a Kanban-style issue board for visual workflow management across statuses and assignees
+- Building dedicated profile and settings pages for user preferences, account details, and workspace customization

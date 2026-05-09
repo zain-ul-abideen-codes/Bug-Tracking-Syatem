@@ -132,8 +132,10 @@ export default function AgentChat({ chat }) {
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={2}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", md: "center" }}
+            sx={{
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", md: "center" },
+            }}
           >
             <Box>
               <Typography sx={{ letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.85 }}>
@@ -192,7 +194,7 @@ export default function AgentChat({ chat }) {
 
       <Paper sx={{ overflow: "hidden" }}>
         <Box sx={{ p: 2.5, bgcolor: "rgba(25,118,210,0.05)", borderBottom: "1px solid rgba(15,23,42,0.08)" }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <Avatar sx={{ bgcolor: "primary.main" }}>
               <SmartToyRounded />
             </Avatar>
@@ -225,7 +227,7 @@ export default function AgentChat({ chat }) {
                 key={message.id}
                 direction="row"
                 spacing={1.25}
-                justifyContent={isAssistant ? "flex-start" : "flex-end"}
+                sx={{ justifyContent: isAssistant ? "flex-start" : "flex-end" }}
               >
                 {isAssistant && (
                   <Avatar sx={{ bgcolor: "primary.main", width: 38, height: 38 }}>
@@ -308,7 +310,7 @@ export default function AgentChat({ chat }) {
                 <SmartToyRounded fontSize="small" />
               </Avatar>
               <Paper sx={{ px: 2, py: 1.5 }}>
-                <Stack direction="row" spacing={1.25} alignItems="center">
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
                   <CircularProgress size={18} />
                   <Typography color="text.secondary">
                     BugBot is streaming a response...
@@ -334,8 +336,9 @@ export default function AgentChat({ chat }) {
               minRows={3}
               maxRows={8}
               fullWidth
-              InputProps={{
-                startAdornment: (
+              slotProps={{
+                input: {
+                  startAdornment: (
                   <InputAdornment position="start">
                     <IconButton
                       onClick={handleVoiceInput}
@@ -349,14 +352,17 @@ export default function AgentChat({ chat }) {
                       <MicOutlined />
                     </IconButton>
                   </InputAdornment>
-                ),
+                  ),
+                },
               }}
             />
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
-              justifyContent="space-between"
-              alignItems={{ xs: "stretch", sm: "center" }}
+              sx={{
+                justifyContent: "space-between",
+                alignItems: { xs: "stretch", sm: "center" },
+              }}
             >
               <Typography variant="body2" color="text.secondary">
                 Press `Enter` to send. Use `Shift + Enter` for a new line.

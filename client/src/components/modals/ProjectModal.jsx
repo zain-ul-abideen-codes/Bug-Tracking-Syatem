@@ -62,7 +62,7 @@ export default function ProjectModal({ open, loading, project, users, currentRol
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="title"
               control={control}
@@ -72,7 +72,7 @@ export default function ProjectModal({ open, loading, project, users, currentRol
               )}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Controller
               name="manager"
               control={control}
@@ -87,14 +87,14 @@ export default function ProjectModal({ open, loading, project, users, currentRol
               )}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               name="description"
               control={control}
               render={({ field }) => <TextField {...field} fullWidth multiline minRows={4} label="Description" />}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Controller
               name="qaEngineers"
               control={control}
@@ -114,7 +114,7 @@ export default function ProjectModal({ open, loading, project, users, currentRol
                   }}
                   renderOption={(props, option) => (
                     <li {...props}>
-                      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
+                      <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, width: "100%", alignItems: "center" }}>
                         <Avatar sx={{ width: 28, height: 28, flexShrink: 0 }}>{option.name?.charAt(0)}</Avatar>
                         <Typography
                           variant="body2"
@@ -156,7 +156,7 @@ export default function ProjectModal({ open, loading, project, users, currentRol
               )}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Controller
               name="developers"
               control={control}
@@ -176,7 +176,7 @@ export default function ProjectModal({ open, loading, project, users, currentRol
                   }}
                   renderOption={(props, option) => (
                     <li {...props}>
-                      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, width: "100%" }}>
+                      <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, width: "100%", alignItems: "center" }}>
                         <Avatar sx={{ width: 28, height: 28, flexShrink: 0 }}>{option.name?.charAt(0)}</Avatar>
                         <Typography
                           variant="body2"

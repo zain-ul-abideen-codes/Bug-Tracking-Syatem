@@ -6,6 +6,7 @@ import {
   Badge,
   Box,
   Breadcrumbs,
+  Button,
   Chip,
   Collapse,
   Divider,
@@ -14,11 +15,13 @@ import {
   IconButton,
   InputAdornment,
   List,
+  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
+  Paper,
   Stack,
   TextField,
   Toolbar,
@@ -33,6 +36,7 @@ import {
   ChevronRightRounded,
   DashboardRounded,
   DarkModeRounded,
+  DeleteSweepRounded,
   ExpandLessRounded,
   ExpandMoreRounded,
   FolderRounded,
@@ -68,40 +72,51 @@ const navConfig = {
     { label: "Users", icon: <PeopleRounded />, to: "/users" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
     { label: "AI Audit", icon: <GavelRounded />, to: "/agent/audit" },
+    { label: "Profile", icon: <AccountCircleRounded />, to: "/profile" },
+    { label: "Settings", icon: <SettingsRounded />, to: "/settings" },
   ],
   manager: [
     { label: "Dashboard", icon: <DashboardRounded />, to: "/" },
+    { label: "Assigned Projects", icon: <FolderRounded />, to: "/assigned-projects" },
     {
       label: "Projects",
       icon: <FolderRounded />,
-      children: [
-        { label: "All Projects", to: "/projects" },
-      ],
+      children: [{ label: "All Projects", to: "/projects" }],
     },
     { label: "Issues", icon: <BugReportRounded />, to: "/bugs" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
+    { label: "Profile", icon: <AccountCircleRounded />, to: "/profile" },
+    { label: "Settings", icon: <SettingsRounded />, to: "/settings" },
   ],
   qa: [
     { label: "Dashboard", icon: <DashboardRounded />, to: "/" },
-    { label: "Projects", icon: <FolderRounded />, to: "/projects" },
+    { label: "Assigned Projects", icon: <FolderRounded />, to: "/assigned-projects" },
     { label: "Issues", icon: <BugReportRounded />, to: "/bugs" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
+    { label: "Profile", icon: <AccountCircleRounded />, to: "/profile" },
+    { label: "Settings", icon: <SettingsRounded />, to: "/settings" },
   ],
   developer: [
     { label: "Dashboard", icon: <DashboardRounded />, to: "/" },
+    { label: "Assigned Projects", icon: <FolderRounded />, to: "/assigned-projects" },
     { label: "Assigned Issues", icon: <BugReportRounded />, to: "/bugs" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
+    { label: "Profile", icon: <AccountCircleRounded />, to: "/profile" },
+    { label: "Settings", icon: <SettingsRounded />, to: "/settings" },
   ],
 };
 
 const routeNameMap = {
   "/": "Dashboard",
   "/projects": "Projects",
+  "/assigned-projects": "Assigned Projects",
   "/projects/overview": "Project Details",
   "/bugs": "Issues",
   "/users": "User Management",
   "/agent": "AI Agent",
   "/agent/audit": "AI Audit",
+  "/profile": "Profile",
+  "/settings": "Settings",
 };
 
 function SearchField({ mobile = false, open = true, onToggle }) {
@@ -125,12 +140,14 @@ function SearchField({ mobile = false, open = true, onToggle }) {
           bgcolor: (theme) => alpha(theme.palette.background.paper, theme.palette.mode === "dark" ? 0.12 : 0.88),
         },
       }}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <SearchRounded fontSize="small" />
-          </InputAdornment>
-        ),
+      slotProps={{
+        input: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchRounded fontSize="small" />
+            </InputAdornment>
+          ),
+        },
       }}
     />
   );
@@ -139,12 +156,13 @@ function SearchField({ mobile = false, open = true, onToggle }) {
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const { mode, toggleColorMode } = useThemeMode();
-  const { notify } = useNotification();
+  const { history, unreadCount, markAllAsRead, removeNotification, clearHistory } = useNotification();
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [openSections, setOpenSections] = useState({ Projects: true });
@@ -176,7 +194,7 @@ export default function MainLayout() {
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ p: 3 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
           <Avatar sx={{ bgcolor: "primary.main", width: 48, height: 48 }}>
             <BugReportRounded />
           </Avatar>
@@ -190,7 +208,7 @@ export default function MainLayout() {
       </Box>
       <Divider />
       <Box sx={{ p: 2.5 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
           <Avatar sx={{ bgcolor: "secondary.main", width: 46, height: 46 }}>
             {user?.name?.charAt(0) || "U"}
           </Avatar>
@@ -198,12 +216,7 @@ export default function MainLayout() {
             <Typography fontWeight={700} noWrap>
               {user?.name}
             </Typography>
-            <Chip
-              size="small"
-              label={user?.role}
-              color="primary"
-              sx={{ mt: 0.75, textTransform: "capitalize" }}
-            />
+            <Chip size="small" label={user?.role} color="primary" sx={{ mt: 0.75, textTransform: "capitalize" }} />
           </Box>
         </Stack>
       </Box>
@@ -226,10 +239,7 @@ export default function MainLayout() {
                   }}
                 >
                   <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{ fontWeight: active ? 700 : 500 }}
-                  />
+                  <ListItemText primary={item.label} slotProps={{ primary: { fontWeight: active ? 700 : 500 } }} />
                   {open ? <ExpandLessRounded /> : <ExpandMoreRounded />}
                 </ListItemButton>
                 <Collapse in={open} timeout="auto" unmountOnExit>
@@ -275,10 +285,7 @@ export default function MainLayout() {
               }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{ fontWeight: location.pathname === item.to ? 700 : 500 }}
-              />
+              <ListItemText primary={item.label} slotProps={{ primary: { fontWeight: location.pathname === item.to ? 700 : 500 } }} />
             </ListItemButton>
           );
         })}
@@ -306,7 +313,7 @@ export default function MainLayout() {
           <IconButton color="inherit" onClick={() => setDrawerOpen(true)} sx={{ display: { md: "none" } }}>
             <MenuRounded />
           </IconButton>
-          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ display: { xs: "none", sm: "flex", md: "none" } }}>
+          <Stack direction="row" spacing={1.25} sx={{ display: { xs: "none", sm: "flex", md: "none" }, alignItems: "center" }}>
             <BugReportRounded color="primary" />
             <Typography variant="h6">BugTracker Pro</Typography>
           </Stack>
@@ -317,15 +324,15 @@ export default function MainLayout() {
               <SearchField />
             )}
           </Box>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Tooltip title={mode === "light" ? "Dark mode" : "Light mode"}>
               <IconButton color="inherit" onClick={toggleColorMode}>
                 {mode === "light" ? <DarkModeRounded /> : <LightModeRounded />}
               </IconButton>
             </Tooltip>
             <Tooltip title="Notifications">
-              <IconButton color="inherit" onClick={() => notify("Notifications center is coming soon.", "info")}>
-                <Badge color="error" variant="dot">
+              <IconButton color="inherit" onClick={() => setNotificationsOpen(true)}>
+                <Badge color="error" badgeContent={unreadCount || null}>
                   <NotificationsRounded />
                 </Badge>
               </IconButton>
@@ -337,16 +344,12 @@ export default function MainLayout() {
                 </Avatar>
               </IconButton>
             </Tooltip>
-            <Menu
-              anchorEl={menuAnchor}
-              open={Boolean(menuAnchor)}
-              onClose={() => setMenuAnchor(null)}
-            >
-              <MenuItem onClick={() => { setMenuAnchor(null); notify("Profile page is coming soon.", "info"); }}>
+            <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+              <MenuItem onClick={() => { setMenuAnchor(null); navigate("/profile"); }}>
                 <ListItemIcon><AccountCircleRounded fontSize="small" /></ListItemIcon>
                 Profile
               </MenuItem>
-              <MenuItem onClick={() => { setMenuAnchor(null); notify("Settings panel is coming soon.", "info"); }}>
+              <MenuItem onClick={() => { setMenuAnchor(null); navigate("/settings"); }}>
                 <ListItemIcon><SettingsRounded fontSize="small" /></ListItemIcon>
                 Settings
               </MenuItem>
@@ -388,12 +391,8 @@ export default function MainLayout() {
         <Toolbar sx={{ minHeight: "78px !important" }} />
         <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, py: 3 }}>
           <Stack spacing={1.2} sx={{ mb: 3 }}>
-            <Breadcrumbs separator="›" aria-label="breadcrumb">
-              <Typography
-                component={RouterLink}
-                to="/"
-                sx={{ textDecoration: "none", color: "text.secondary" }}
-              >
+            <Breadcrumbs separator=">" aria-label="breadcrumb">
+              <Typography component={RouterLink} to="/" sx={{ textDecoration: "none", color: "text.secondary" }}>
                 Home
               </Typography>
               {breadcrumbs.map((item, index) => (
@@ -402,12 +401,7 @@ export default function MainLayout() {
                     {item.label}
                   </Typography>
                 ) : (
-                  <Typography
-                    key={item.to}
-                    component={RouterLink}
-                    to={item.to}
-                    sx={{ textDecoration: "none", color: "text.secondary" }}
-                  >
+                  <Typography key={item.to} component={RouterLink} to={item.to} sx={{ textDecoration: "none", color: "text.secondary" }}>
                     {item.label}
                   </Typography>
                 )
@@ -424,6 +418,80 @@ export default function MainLayout() {
           </Fade>
         </Box>
       </Box>
+
+      <Drawer
+        anchor="right"
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        sx={{ "& .MuiDrawer-paper": { width: { xs: "100%", sm: 380 } } }}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+          <Box sx={{ p: 3 }}>
+            <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "center" }}>
+              <Box>
+                <Typography variant="h6">Notifications</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Activity history and recent workspace messages.
+                </Typography>
+              </Box>
+              <Chip label={`${history.length} total`} color="primary" variant="outlined" />
+            </Stack>
+          </Box>
+          <Divider />
+          <Stack direction="row" spacing={1} sx={{ p: 2, justifyContent: "space-between" }}>
+            <Button size="small" onClick={markAllAsRead}>Mark all read</Button>
+            <Button size="small" color="error" startIcon={<DeleteSweepRounded />} onClick={clearHistory}>
+              Clear
+            </Button>
+          </Stack>
+          <Divider />
+          <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+            {history.length === 0 ? (
+              <Paper variant="outlined" sx={{ p: 3, textAlign: "center" }}>
+                <Typography variant="h6">No notifications yet</Typography>
+                <Typography color="text.secondary" sx={{ mt: 1 }}>
+                  Success, error, and info activity will be stored here as you use the app.
+                </Typography>
+              </Paper>
+            ) : (
+              <List sx={{ p: 0 }}>
+                {history.map((entry) => (
+                  <ListItem
+                    key={entry.id}
+                    disablePadding
+                    sx={{ mb: 1.25 }}
+                    secondaryAction={(
+                      <IconButton edge="end" onClick={() => removeNotification(entry.id)}>
+                        <DeleteSweepRounded fontSize="small" />
+                      </IconButton>
+                    )}
+                  >
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        width: "100%",
+                        borderColor: entry.read ? "divider" : "primary.main",
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                          <Chip size="small" label={entry.severity} color={entry.severity} sx={{ textTransform: "capitalize" }} />
+                          {!entry.read ? <Chip size="small" label="New" color="primary" /> : null}
+                        </Stack>
+                        <Typography>{entry.message}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </Typography>
+                      </Stack>
+                    </Paper>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </Box>
+      </Drawer>
     </Box>
   );
 }

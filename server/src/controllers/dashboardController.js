@@ -39,10 +39,10 @@ const getDashboardData = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role === ROLES.DEVELOPER) {
-    bugFilter = { assignedDeveloper: req.user._id };
-    const bugs = await Bug.find(bugFilter).select("project");
-    const ids = [...new Set(bugs.map((bug) => String(bug.project)))];
+    const projects = await Project.find({ developers: req.user._id }).select("_id");
+    const ids = projects.map((project) => project._id);
     projectFilter = { _id: { $in: ids } };
+    bugFilter = { project: { $in: ids } };
   }
 
   const [
@@ -121,9 +121,11 @@ const getDashboardData = asyncHandler(async (req, res) => {
         deadline: { $lt: new Date() },
         status: { $nin: ["resolved", "completed"] },
       }),
-      Bug.countDocuments({
-        assignedDeveloper: req.user._id,
-      }),
+      Bug.countDocuments(
+        req.user.role === ROLES.DEVELOPER
+          ? { project: bugFilter.project?.$in ? { $in: bugFilter.project.$in } : bugFilter.project, assignedDeveloper: req.user._id }
+          : { assignedDeveloper: req.user._id },
+      ),
     ]);
 
   const velocitySeries = buildDateSeries().map((day) => {

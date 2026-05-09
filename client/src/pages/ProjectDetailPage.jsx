@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
     <Stack spacing={3} className="page-fade-in">
       <Paper sx={{ p: 3.5 }}>
         <Stack spacing={2}>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
             <Avatar sx={{ bgcolor: "primary.main", width: 60, height: 60 }}>
               <FolderRoundedIcon />
             </Avatar>
@@ -100,13 +100,13 @@ export default function ProjectDetailPage() {
       {tab === 0 ? (
         <Stack spacing={2.5}>
           <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <StatMiniCard label="Total Issues" value={projectBugs.length} />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <StatMiniCard label="Open Issues" value={openCount} />
             </Grid>
-            <Grid item xs={12} sm={4}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <StatMiniCard label="Completed" value={doneCount} />
             </Grid>
           </Grid>

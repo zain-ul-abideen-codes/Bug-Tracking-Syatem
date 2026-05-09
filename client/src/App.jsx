@@ -1,19 +1,29 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
-import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
-import UsersPage from "./pages/UsersPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import BugsPage from "./pages/BugsPage";
-import AgentPage from "./pages/AgentPage";
-import ProjectDetailPage from "./pages/ProjectDetailPage";
-import AuditPage from "./pages/AuditPage";
+import PageSkeleton from "./components/common/PageSkeleton";
+
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const UsersPage = lazy(() => import("./pages/UsersPage"));
+const ProjectsPage = lazy(() => import("./pages/ProjectsPage"));
+const AssignedProjectsPage = lazy(() => import("./pages/AssignedProjectsPage"));
+const BugsPage = lazy(() => import("./pages/BugsPage"));
+const AgentPage = lazy(() => import("./pages/AgentPage"));
+const ProjectDetailPage = lazy(() => import("./pages/ProjectDetailPage"));
+const AuditPage = lazy(() => import("./pages/AuditPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+
+function LazyPage({ children }) {
+  return <Suspense fallback={<PageSkeleton cards={3} rows={4} />}>{children}</Suspense>;
+}
 
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<LazyPage><LoginPage /></LazyPage>} />
       <Route
         path="/"
         element={
@@ -22,18 +32,21 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="projects" element={<ProjectsPage />} />
-        <Route path="projects/:projectId" element={<ProjectDetailPage />} />
-        <Route path="projects/overview" element={<ProjectDetailPage />} />
-        <Route path="bugs" element={<BugsPage />} />
-        <Route path="agent" element={<AgentPage />} />
+        <Route index element={<LazyPage><DashboardPage /></LazyPage>} />
+        <Route path="users" element={<LazyPage><UsersPage /></LazyPage>} />
+        <Route path="projects" element={<LazyPage><ProjectsPage /></LazyPage>} />
+        <Route path="assigned-projects" element={<LazyPage><AssignedProjectsPage /></LazyPage>} />
+        <Route path="projects/:projectId" element={<LazyPage><ProjectDetailPage /></LazyPage>} />
+        <Route path="projects/overview" element={<LazyPage><ProjectDetailPage /></LazyPage>} />
+        <Route path="bugs" element={<LazyPage><BugsPage /></LazyPage>} />
+        <Route path="agent" element={<LazyPage><AgentPage /></LazyPage>} />
+        <Route path="profile" element={<LazyPage><ProfilePage /></LazyPage>} />
+        <Route path="settings" element={<LazyPage><SettingsPage /></LazyPage>} />
         <Route
           path="agent/audit"
           element={
             <ProtectedRoute roles={["administrator"]}>
-              <AuditPage />
+              <LazyPage><AuditPage /></LazyPage>
             </ProtectedRoute>
           }
         />

@@ -49,7 +49,7 @@ export default function PasswordResetModal({ open, loading, onClose, onSubmit })
       </DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               name="password"
               control={control}
@@ -62,7 +62,7 @@ export default function PasswordResetModal({ open, loading, onClose, onSubmit })
               )}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid size={12}>
             <Controller
               name="confirmPassword"
               control={control}

@@ -16,6 +16,7 @@ import KeyRoundedIcon from "@mui/icons-material/KeyRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import { DataGrid } from "@mui/x-data-grid";
 import { createUser, deleteUser, getUsers, resetPassword, updateUser } from "../api/usersApi";
+import { getProjects } from "../api/projectsApi";
 import useAuth from "../hooks/useAuth";
 import { useNotification } from "../context/NotificationContext";
 import PageHeader from "../components/common/PageHeader";
@@ -33,35 +34,92 @@ const roleColorMap = {
 };
 
 export default function UsersPage() {
-  const { user } = useAuth();
+  const { user, accessToken, loading: authLoading } = useAuth();
   const { notify } = useNotification();
   const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [dialog, setDialog] = useState("");
+  const [pageError, setPageError] = useState("");
 
   const canManageUsers = user.role === "administrator";
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      setUsers(await getUsers());
+      setPageError("");
+      const [usersData, projectsData] = await Promise.all([
+        getUsers(accessToken),
+        getProjects(accessToken),
+      ]);
+      setUsers(usersData);
+      setProjects(projectsData);
     } catch (error) {
-      notify(error.response?.data?.message || "Unable to load users.", "error");
+      const message = error.response?.data?.message || "Unable to load users.";
+      setPageError(message);
+      if (error.response?.status !== 401 && message !== "Authentication required.") {
+        notify(message, "error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (authLoading) {
+      return undefined;
+    }
+
+    if (!accessToken) {
+      setLoading(false);
+      setPageError("Authentication required.");
+      return undefined;
+    }
+
     loadUsers();
-  }, []);
+    return undefined;
+  }, [accessToken, authLoading]);
+
+  const projectMapByUser = useMemo(() => {
+    return projects.reduce((accumulator, project) => {
+      const links = [
+        project.manager ? { userId: String(project.manager._id || project.manager), role: "manager" } : null,
+        ...(project.qaEngineers || []).map((member) => ({
+          userId: String(member._id || member),
+          role: "qa",
+        })),
+        ...(project.developers || []).map((member) => ({
+          userId: String(member._id || member),
+          role: "developer",
+        })),
+      ].filter(Boolean);
+
+      links.forEach(({ userId, role }) => {
+        if (!accumulator[userId]) {
+          accumulator[userId] = [];
+        }
+        accumulator[userId].push({
+          _id: project._id,
+          title: project.title,
+          role,
+        });
+      });
+
+      return accumulator;
+    }, {});
+  }, [projects]);
 
   const rows = useMemo(
-    () => users.map((record) => ({ id: record._id, ...record })),
-    [users],
+    () =>
+      users.map((record) => ({
+        id: record._id,
+        ...record,
+        assignedProjects: projectMapByUser[String(record._id)] || [],
+      })),
+    [projectMapByUser, users],
   );
 
   const columns = [
@@ -79,6 +137,41 @@ export default function UsersPage() {
       headerName: "Role",
       minWidth: 150,
       renderCell: ({ value }) => <Chip label={value} color={roleColorMap[value] || "default"} sx={{ textTransform: "capitalize" }} />,
+    },
+    {
+      field: "assignedProjects",
+      headerName: "Assigned Projects",
+      flex: 1.4,
+      minWidth: 280,
+      sortable: false,
+      renderCell: ({ value }) => (
+        <Box sx={{ width: "100%", py: 1 }}>
+          {value?.length ? (
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+              {value.map((project) => (
+                <Chip
+                  key={`${project._id}-${project.role}`}
+                  label={project.title}
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  sx={{
+                    maxWidth: 180,
+                    "& .MuiChip-label": {
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    },
+                  }}
+                />
+              ))}
+            </Stack>
+          ) : (
+            <Chip label="No assignments" size="small" variant="outlined" />
+          )}
+        </Box>
+      ),
     },
     {
       field: "createdAt",
@@ -166,7 +259,7 @@ export default function UsersPage() {
     return <EmptyState icon={GroupRoundedIcon} title="Admin access required" subtitle="User management is only available to administrators." />;
   }
 
-  if (loading) return <PageSkeleton cards={2} rows={6} />;
+  if (loading || authLoading) return <PageSkeleton cards={2} rows={6} />;
 
   return (
     <Stack spacing={3} className="page-fade-in">
@@ -194,8 +287,11 @@ export default function UsersPage() {
         }
       />
 
-      <Paper sx={{ p: 2 }}>
-        <Box sx={{ width: "100%", overflowX: "auto" }}>
+      {pageError ? (
+        <EmptyState icon={GroupRoundedIcon} title="Users unavailable" subtitle={pageError} />
+      ) : (
+      <Paper sx={{ p: 2, overflow: "hidden" }}>
+        <Box sx={{ width: "100%" }}>
           <DataGrid
             autoHeight
             rows={rows}
@@ -203,15 +299,22 @@ export default function UsersPage() {
             pageSizeOptions={[5, 10, 25]}
             disableRowSelectionOnClick
             sx={{
-              minWidth: 900,
+              width: "100%",
               border: "none",
               "& .MuiDataGrid-row:hover": {
                 backgroundColor: "action.hover",
+              },
+              "& .MuiDataGrid-main": {
+                minWidth: 0,
+              },
+              "& .MuiDataGrid-cell": {
+                alignItems: "center",
               },
             }}
           />
         </Box>
       </Paper>
+      )}
 
       <UserModal
         open={dialog === "user"}

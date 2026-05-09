@@ -29,7 +29,7 @@ function ChartCard({ title, children }) {
 export default function DashboardCharts({ charts }) {
   return (
     <Grid container spacing={2.5}>
-      <Grid item xs={12} lg={6}>
+      <Grid size={{ xs: 12, lg: 6 }}>
         <ChartCard title="Bug Status Distribution">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -51,7 +51,7 @@ export default function DashboardCharts({ charts }) {
           </ResponsiveContainer>
         </ChartCard>
       </Grid>
-      <Grid item xs={12} lg={6}>
+      <Grid size={{ xs: 12, lg: 6 }}>
         <ChartCard title="Bugs Per Project">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={charts.countPerProject}>
@@ -64,7 +64,7 @@ export default function DashboardCharts({ charts }) {
           </ResponsiveContainer>
         </ChartCard>
       </Grid>
-      <Grid item xs={12} lg={6}>
+      <Grid size={{ xs: 12, lg: 6 }}>
         <ChartCard title="Bug vs Feature Ratio">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -79,7 +79,7 @@ export default function DashboardCharts({ charts }) {
           </ResponsiveContainer>
         </ChartCard>
       </Grid>
-      <Grid item xs={12} lg={6}>
+      <Grid size={{ xs: 12, lg: 6 }}>
         <ChartCard title="Issue Creation Trend">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={charts.velocitySeries}>

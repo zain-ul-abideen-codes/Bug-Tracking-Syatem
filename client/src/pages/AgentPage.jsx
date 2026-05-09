@@ -25,7 +25,7 @@ export default function AgentPage() {
         <Stack spacing={3}>
           <Paper sx={{ p: 3 }}>
             <Stack spacing={2}>
-              <Stack direction="row" spacing={1.5} alignItems="center">
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
                 <SmartToyRoundedIcon color="primary" />
                 <Typography variant="h6">Agent Control</Typography>
               </Stack>

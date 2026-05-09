@@ -14,3 +14,14 @@ export const logoutRequest = async () => {
   const { data } = await api.post("/auth/logout");
   return data;
 };
+
+export const meRequest = async (token) => {
+  const { data } = await api.get("/auth/me", {
+    headers: token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : undefined,
+  });
+  return data;
+};

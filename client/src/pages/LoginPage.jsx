@@ -75,7 +75,7 @@ export default function LoginPage() {
           <Card sx={{ maxWidth: 420, mx: "auto", boxShadow: 8, borderRadius: 3 }}>
             <CardContent sx={{ p: 4 }}>
               <Stack spacing={3}>
-                <Stack spacing={1.5} alignItems="center" textAlign="center">
+                <Stack spacing={1.5} sx={{ alignItems: "center", textAlign: "center" }}>
                   <Box
                     sx={{
                       width: 70,
@@ -103,12 +103,14 @@ export default function LoginPage() {
                       value={form.email}
                       onChange={handleChange}
                       required
-                      InputProps={{
-                        startAdornment: (
+                      slotProps={{
+                        input: {
+                          startAdornment: (
                           <InputAdornment position="start">
                             <EmailRounded fontSize="small" />
                           </InputAdornment>
-                        ),
+                          ),
+                        },
                       }}
                     />
                     <TextField
@@ -119,26 +121,28 @@ export default function LoginPage() {
                       value={form.password}
                       onChange={handleChange}
                       required
-                      InputProps={{
-                        startAdornment: (
+                      slotProps={{
+                        input: {
+                          startAdornment: (
                           <InputAdornment position="start">
                             <LockRounded fontSize="small" />
                           </InputAdornment>
-                        ),
-                        endAdornment: (
+                          ),
+                          endAdornment: (
                           <InputAdornment position="end">
                             <IconButton onClick={() => setShowPassword((current) => !current)} edge="end">
                               {showPassword ? <VisibilityOff /> : <Visibility />}
                             </IconButton>
                           </InputAdornment>
-                        ),
+                          ),
+                        },
                       }}
                     />
                     {serverError ? <Alert severity="error">{serverError}</Alert> : null}
                     <Box>
                       <Button type="submit" fullWidth variant="contained" size="large" disabled={submitting}>
                         {submitting ? (
-                          <Stack direction="row" spacing={1.25} justifyContent="center" alignItems="center">
+                          <Stack direction="row" spacing={1.25} sx={{ justifyContent: "center", alignItems: "center" }}>
                             <CircularProgress size={20} sx={{ color: "white" }} />
                             <span>Signing In...</span>
                           </Stack>
