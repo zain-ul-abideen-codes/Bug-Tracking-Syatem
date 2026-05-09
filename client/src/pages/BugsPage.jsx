@@ -33,6 +33,7 @@ import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
 import ViewKanbanRoundedIcon from "@mui/icons-material/ViewKanbanRounded";
 import ViewListRoundedIcon from "@mui/icons-material/ViewListRounded";
 import { DataGrid } from "@mui/x-data-grid";
+import { useSearchParams } from "react-router-dom";
 import { createBug, deleteBug, getBugs, updateBug } from "../api/bugsApi";
 import { getProjects } from "../api/projectsApi";
 import { getUsers } from "../api/usersApi";
@@ -251,6 +252,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
   const { user, accessToken, loading: authLoading } = useAuth();
   const { notify } = useNotification();
   const currentUserId = String(user?.userId || user?._id || "");
+  const [searchParams] = useSearchParams();
   const userStorageKey = `${SAVED_FILTERS_KEY}:${currentUserId || user?.role || "guest"}`;
   const [bugs, setBugs] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -293,6 +295,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       return "table";
     }
   });
+  const urlSearchQuery = searchParams.get("search") || "";
 
   const debouncedQuery = useDebouncedValue(query);
   const canCreate = ["administrator", "qa"].includes(user.role);
@@ -300,6 +303,10 @@ export default function BugsPage({ projectId = null, embedded = false }) {
   useEffect(() => {
     localStorage.setItem(userStorageKey, JSON.stringify(savedFilters));
   }, [savedFilters, userStorageKey]);
+
+  useEffect(() => {
+    setQuery(urlSearchQuery);
+  }, [urlSearchQuery]);
 
   const loadPage = async () => {
     try {
@@ -672,12 +679,14 @@ export default function BugsPage({ projectId = null, embedded = false }) {
             current.map((entry) => (getBugId(entry) === getBugId(response.bug) ? response.bug : entry)),
           );
         }
+        window.dispatchEvent(new CustomEvent("bugtracker:issues-changed"));
         notify("Issue updated successfully.", "success");
       } else {
         const response = await createBug(payload);
         if (response?.bug) {
           setBugs((current) => [response.bug, ...current]);
         }
+        window.dispatchEvent(new CustomEvent("bugtracker:issues-changed"));
         notify("Issue created successfully.", "success");
       }
       setDialog("");
@@ -696,6 +705,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     try {
       setDeleteLoading(true);
       await deleteBug(getBugId(selectedBug));
+      window.dispatchEvent(new CustomEvent("bugtracker:issues-changed"));
       notify("Issue deleted successfully.", "success");
       setDialog("");
       setSelectedBug(null);
@@ -773,6 +783,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       }
       setPulseLaneKey(status);
       setTimeout(() => setPulseLaneKey(""), 900);
+      window.dispatchEvent(new CustomEvent("bugtracker:issues-changed"));
       notify(`Issue moved to ${status}.`, "success");
     } catch (error) {
       setBugs((current) =>

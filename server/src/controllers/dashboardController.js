@@ -20,9 +20,23 @@ const buildDateSeries = (days = 7) => {
   return series;
 };
 
+const mapTrendSeries = (trendData, days) =>
+  buildDateSeries(days).map((day) => {
+    const match = trendData.find((item) => item.date === day.isoDate);
+    return {
+      name: day.label,
+      value: match?.value || 0,
+    };
+  });
+
 const getDashboardData = asyncHandler(async (req, res) => {
   let projectFilter = {};
   let bugFilter = {};
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const resolvedTodayPattern = /to (resolved|completed)\.?$/i;
 
   if (req.user.role === ROLES.MANAGER) {
     const projects = await Project.find({ manager: req.user._id }).select("_id");
@@ -55,6 +69,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
     issueCount,
     openCount,
     completedCount,
+    completedTodayActivity,
     overdueCount,
     assignedToMeCount,
   ] =
@@ -116,6 +131,19 @@ const getDashboardData = asyncHandler(async (req, res) => {
         ...bugFilter,
         status: { $in: ["resolved", "completed"] },
       }),
+      Bug.aggregate([
+        { $match: bugFilter },
+        { $unwind: "$activity" },
+        {
+          $match: {
+            "activity.action": "status_changed",
+            "activity.createdAt": { $gte: startOfToday, $lte: endOfToday },
+            "activity.message": resolvedTodayPattern,
+          },
+        },
+        { $group: { _id: "$_id" } },
+        { $count: "count" },
+      ]),
       Bug.countDocuments({
         ...bugFilter,
         deadline: { $lt: new Date() },
@@ -128,13 +156,12 @@ const getDashboardData = asyncHandler(async (req, res) => {
       ),
     ]);
 
-  const velocitySeries = buildDateSeries().map((day) => {
-    const match = trendData.find((item) => item.date === day.isoDate);
-    return {
-      name: day.label,
-      value: match?.value || 0,
-    };
-  });
+  const velocitySeries = mapTrendSeries(trendData, 7);
+  const velocitySeries30 = mapTrendSeries(trendData, 30);
+
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
 
   res.status(200).json({
     metrics: {
@@ -142,6 +169,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
       issueCount,
       openCount,
       completedCount,
+      completedTodayCount: completedTodayActivity[0]?.count || 0,
       overdueCount,
       assignedToMeCount,
     },
@@ -150,6 +178,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
       typeDistribution,
       countPerProject,
       velocitySeries,
+      velocitySeries30,
     },
     recentIssues,
   });

@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Avatar,
-  AvatarGroup,
   Box,
-  Button,
   Chip,
   Grid,
   Paper,
@@ -13,14 +11,10 @@ import {
 import {
   BugReportRounded,
   CheckCircleRounded,
-  FolderOpenRounded,
   FolderRounded,
   WarningAmberRounded,
 } from "@mui/icons-material";
-import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import { Link as RouterLink } from "react-router-dom";
 import { getDashboard } from "../api/dashboardApi";
-import { getProjects } from "../api/projectsApi";
 import DashboardCharts from "../components/charts/DashboardCharts";
 import PageHeader from "../components/common/PageHeader";
 import PageSkeleton from "../components/common/PageSkeleton";
@@ -28,12 +22,14 @@ import EmptyState from "../components/common/EmptyState";
 import useAuth from "../hooks/useAuth";
 
 function SummaryCard({ icon, label, value, chip, color }) {
+  const displayValue = value ?? 0;
+
   return (
     <Paper sx={{ p: 3, height: "100%" }}>
       <Stack direction="row" spacing={2} sx={{ justifyContent: "space-between" }}>
         <Stack spacing={1}>
           <Typography color="text.secondary">{label}</Typography>
-          <Typography variant="h4">{value}</Typography>
+          <Typography variant="h4">{displayValue}</Typography>
           <Chip size="small" label={chip} color={color} sx={{ alignSelf: "flex-start" }} />
         </Stack>
         <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.main`, width: 56, height: 56 }}>
@@ -47,9 +43,9 @@ function SummaryCard({ icon, label, value, chip, color }) {
 export default function DashboardPage() {
   const { accessToken, loading: authLoading } = useAuth();
   const [dashboard, setDashboard] = useState(null);
-  const [assignedProjects, setAssignedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     if (authLoading) {
@@ -66,17 +62,16 @@ export default function DashboardPage() {
 
     const loadDashboard = async () => {
       try {
-        setLoading(true);
+        if (!hasLoadedRef.current) {
+          setLoading(true);
+        }
         setError("");
-        const [data, projectData] = await Promise.all([
-          getDashboard(accessToken),
-          getProjects(accessToken),
-        ]);
+        const data = await getDashboard(accessToken);
         if (!active) {
           return;
         }
         setDashboard(data);
-        setAssignedProjects(projectData);
+        hasLoadedRef.current = true;
       } catch (loadError) {
         if (!active) {
           return;
@@ -91,22 +86,31 @@ export default function DashboardPage() {
 
     loadDashboard();
 
+    const handleRefresh = () => {
+      if (document.visibilityState === "visible") {
+        loadDashboard();
+      }
+    };
+
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadDashboard();
+      }
+    }, 20000);
+
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleRefresh);
+    window.addEventListener("bugtracker:issues-changed", handleRefresh);
+
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleRefresh);
+      window.removeEventListener("bugtracker:issues-changed", handleRefresh);
     };
   }, [accessToken, authLoading]);
   
-
-  const resolvedToday = useMemo(() => {
-    if (!dashboard?.recentIssues) return 0;
-    const today = new Date().toDateString();
-    return dashboard.recentIssues.filter(
-      (issue) =>
-        ["resolved", "completed"].includes(issue.status) &&
-        new Date(issue.updatedAt || issue.createdAt).toDateString() === today,
-    ).length;
-  }, [dashboard]);
-
   if (loading || authLoading) return <PageSkeleton />;
 
   if (error) {
@@ -132,90 +136,17 @@ export default function DashboardPage() {
           <SummaryCard icon={<WarningAmberRounded />} label="Open Issues" value={dashboard.metrics.openCount} chip="Needs attention" color="warning" />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <SummaryCard icon={<CheckCircleRounded />} label="Resolved Today" value={resolvedToday} chip="Healthy flow" color="success" />
+          <SummaryCard
+            icon={<CheckCircleRounded />}
+            label="Resolved Today"
+            value={dashboard.metrics.completedTodayCount ?? 0}
+            chip="Today in your scope"
+            color="success"
+          />
         </Grid>
       </Grid>
 
       <DashboardCharts charts={dashboard.charts} />
-
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={2.5}>
-          <Box>
-            <Typography variant="h6">Assigned Projects</Typography>
-            <Typography color="text.secondary">
-              Projects currently visible to your workspace role.
-            </Typography>
-          </Box>
-
-          {!assignedProjects.length ? (
-            <EmptyState
-              icon={FolderOpenRounded}
-              title="No assigned projects"
-              subtitle="Projects linked to your account will appear here once they are assigned."
-            />
-          ) : (
-            <Grid container spacing={2.5}>
-              {assignedProjects.slice(0, 6).map((project) => {
-                const teamMembers = [project.manager, ...(project.qaEngineers || []), ...(project.developers || [])].filter(Boolean);
-
-                return (
-                  <Grid key={project._id} size={{ xs: 12, md: 6, xl: 4 }} sx={{ display: "flex" }}>
-                    <Paper variant="outlined" sx={{ p: 2.5, width: "100%", display: "flex" }}>
-                      <Stack spacing={2} sx={{ width: "100%" }}>
-                        <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <Avatar sx={{ bgcolor: "primary.main", width: 46, height: 46 }}>
-                            <FolderRounded />
-                          </Avatar>
-                          <AvatarGroup max={4}>
-                            {teamMembers.map((member) => (
-                              <Avatar key={`${project._id}-${member._id}`} sx={{ width: 30, height: 30, bgcolor: "secondary.main" }}>
-                                {member.name?.charAt(0)}
-                              </Avatar>
-                            ))}
-                          </AvatarGroup>
-                        </Stack>
-
-                        <Box>
-                          <Typography variant="h6">{project.title}</Typography>
-                          <Typography
-                            color="text.secondary"
-                            sx={{
-                              mt: 0.75,
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              minHeight: 44,
-                            }}
-                          >
-                            {project.description || "No description provided for this project yet."}
-                          </Typography>
-                        </Box>
-
-                        <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "center", mt: "auto" }}>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">Manager</Typography>
-                            <Typography fontWeight={700}>{project.manager?.name || "Unassigned"}</Typography>
-                          </Box>
-                          <Button
-                            component={RouterLink}
-                            to={`/projects/${project._id}`}
-                            variant="contained"
-                            size="small"
-                            startIcon={<VisibilityRoundedIcon />}
-                          >
-                            View
-                          </Button>
-                        </Stack>
-                      </Stack>
-                    </Paper>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          )}
-        </Stack>
-      </Paper>
 
       <Paper sx={{ p: 3 }}>
         <Stack spacing={2.5}>

@@ -199,7 +199,14 @@ const getAuditLogs = async ({ page = 1, limit = 20 }) => {
   ]);
 
   return {
-    items,
+    items: items.map((item) => ({
+      ...item,
+      toolName: item.toolName || item.tool || "unknown_action",
+      success: item.success === true,
+      toolInput: item.toolInput || item.input || {},
+      toolOutput: item.toolOutput || item.output || null,
+      errorMessage: item.errorMessage || null,
+    })),
     pagination: {
       page: safePage,
       limit: safeLimit,
@@ -220,14 +227,19 @@ const getAuditStats = async () => {
           avgLatencyMs: { $avg: "$latencyMs" },
           failures: {
             $sum: {
-              $cond: [{ $eq: ["$success", false] }, 1, 0],
+              $cond: [{ $eq: ["$success", true] }, 0, 1],
             },
           },
         },
       },
     ]),
     AuditLog.aggregate([
-      { $group: { _id: "$toolName", count: { $sum: 1 } } },
+      {
+        $group: {
+          _id: { $ifNull: ["$toolName", "$tool"] },
+          count: { $sum: 1 },
+        },
+      },
       { $sort: { count: -1, _id: 1 } },
       { $limit: 10 },
     ]),

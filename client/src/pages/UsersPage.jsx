@@ -25,6 +25,7 @@ import EmptyState from "../components/common/EmptyState";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import UserModal from "../components/modals/UserModal";
 import PasswordResetModal from "../components/modals/PasswordResetModal";
+import { useSearchParams } from "react-router-dom";
 
 const roleColorMap = {
   administrator: "secondary",
@@ -44,8 +45,10 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [dialog, setDialog] = useState("");
   const [pageError, setPageError] = useState("");
+  const [searchParams] = useSearchParams();
 
   const canManageUsers = user.role === "administrator";
+  const searchQuery = searchParams.get("search")?.trim().toLowerCase() || "";
 
   const loadUsers = async () => {
     try {
@@ -114,12 +117,21 @@ export default function UsersPage() {
 
   const rows = useMemo(
     () =>
-      users.map((record) => ({
+      users
+        .filter((record) =>
+          !searchQuery ||
+          [record.name, record.email, record.role]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(searchQuery),
+        )
+        .map((record) => ({
         id: record._id,
         ...record,
         assignedProjects: projectMapByUser[String(record._id)] || [],
       })),
-    [projectMapByUser, users],
+    [projectMapByUser, searchQuery, users],
   );
 
   const columns = [
@@ -289,6 +301,16 @@ export default function UsersPage() {
 
       {pageError ? (
         <EmptyState icon={GroupRoundedIcon} title="Users unavailable" subtitle={pageError} />
+      ) : !rows.length ? (
+        <EmptyState
+          icon={GroupRoundedIcon}
+          title={searchQuery ? "No matching users" : "No users yet"}
+          subtitle={
+            searchQuery
+              ? "Try another name, email, or role to find the team member you need."
+              : "Create the first user account to start assigning roles and projects."
+          }
+        />
       ) : (
       <Paper sx={{ p: 2, overflow: "hidden" }}>
         <Box sx={{ width: "100%" }}>

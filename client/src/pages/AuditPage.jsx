@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import {
   Chip,
@@ -34,6 +34,12 @@ export default function AuditPage() {
 
     void load();
   }, []);
+
+  const failureCount = useMemo(() => {
+    const rowFailures = rows.filter((row) => row.success !== true).length;
+    const statsFailures = Number(stats?.overview?.failures || 0);
+    return Math.max(statsFailures, rowFailures);
+  }, [rows, stats]);
 
   if (user?.role !== "administrator") {
     return <Navigate to="/" replace />;
@@ -97,7 +103,7 @@ export default function AuditPage() {
           value: `${Math.round(stats?.overview?.avgLatencyMs || 0)} ms`,
         }, {
           title: "Failures",
-          value: stats?.overview?.failures,
+          value: failureCount,
         }].map((item) => (
           <Grid key={item.title} size={{ xs: 12, md: 3 }}>
             <Paper sx={{ p: 2.5 }}>

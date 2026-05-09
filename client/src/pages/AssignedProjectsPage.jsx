@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { getBugs } from "../api/bugsApi";
 import { getProjects } from "../api/projectsApi";
 import useAuth from "../hooks/useAuth";
@@ -40,6 +40,8 @@ export default function AssignedProjectsPage() {
   const [bugs, setBugs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search")?.trim().toLowerCase() || "";
 
   useEffect(() => {
     const loadAssignedProjects = async () => {
@@ -90,6 +92,20 @@ export default function AssignedProjectsPage() {
     [bugs],
   );
 
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery) {
+      return projects;
+    }
+
+    return projects.filter((project) =>
+      [project.title, project.description, project.manager?.name]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(searchQuery),
+    );
+  }, [projects, searchQuery]);
+
   const pageTitle = titleByRole[user?.role] || "Projects assigned to your workspace";
   const pageSubtitle =
     subtitleByRole[user?.role] ||
@@ -109,15 +125,19 @@ export default function AssignedProjectsPage() {
 
       {error ? (
         <EmptyState icon={FolderRoundedIcon} title="Assigned projects unavailable" subtitle={error} />
-      ) : !projects.length ? (
+      ) : !filteredProjects.length ? (
         <EmptyState
           icon={FolderRoundedIcon}
-          title="No assigned projects"
-          subtitle="Projects assigned to your account will appear here once they are linked to your workspace role."
+          title={searchQuery ? "No matching assigned projects" : "No assigned projects"}
+          subtitle={
+            searchQuery
+              ? "Try a different search term to find the assigned project you need."
+              : "Projects assigned to your account will appear here once they are linked to your workspace role."
+          }
         />
       ) : (
         <Grid container spacing={2.5} sx={{ alignItems: "stretch" }}>
-          {projects.map((project) => {
+          {filteredProjects.map((project) => {
             const teamMembers = [project.manager, ...(project.qaEngineers || []), ...(project.developers || [])].filter(Boolean);
 
             return (

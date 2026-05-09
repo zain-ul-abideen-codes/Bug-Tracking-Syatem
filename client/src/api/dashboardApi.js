@@ -5,8 +5,13 @@ export const getDashboard = async (token) => {
     headers: token
       ? {
           Authorization: `Bearer ${token}`,
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
         }
       : undefined,
+    params: {
+      _t: Date.now(),
+    },
   });
   return data;
 };

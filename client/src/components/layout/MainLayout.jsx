@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   alpha,
   AppBar,
@@ -8,7 +8,6 @@ import {
   Breadcrumbs,
   Button,
   Chip,
-  Collapse,
   Divider,
   Drawer,
   Fade,
@@ -33,12 +32,9 @@ import {
 import {
   AccountCircleRounded,
   BugReportRounded,
-  ChevronRightRounded,
   DashboardRounded,
   DarkModeRounded,
   DeleteSweepRounded,
-  ExpandLessRounded,
-  ExpandMoreRounded,
   FolderRounded,
   LightModeRounded,
   LogoutRounded,
@@ -60,14 +56,7 @@ const drawerWidth = 260;
 const navConfig = {
   administrator: [
     { label: "Dashboard", icon: <DashboardRounded />, to: "/" },
-    {
-      label: "Projects",
-      icon: <FolderRounded />,
-      children: [
-        { label: "All Projects", to: "/projects" },
-        { label: "Project Details", to: "/projects/overview" },
-      ],
-    },
+    { label: "Projects", icon: <FolderRounded />, to: "/projects" },
     { label: "Issues", icon: <BugReportRounded />, to: "/bugs" },
     { label: "Users", icon: <PeopleRounded />, to: "/users" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
@@ -78,11 +67,7 @@ const navConfig = {
   manager: [
     { label: "Dashboard", icon: <DashboardRounded />, to: "/" },
     { label: "Assigned Projects", icon: <FolderRounded />, to: "/assigned-projects" },
-    {
-      label: "Projects",
-      icon: <FolderRounded />,
-      children: [{ label: "All Projects", to: "/projects" }],
-    },
+    { label: "Projects", icon: <FolderRounded />, to: "/projects" },
     { label: "Issues", icon: <BugReportRounded />, to: "/bugs" },
     { label: "AI Agent", icon: <SmartToyRounded />, to: "/agent" },
     { label: "Profile", icon: <AccountCircleRounded />, to: "/profile" },
@@ -119,7 +104,15 @@ const routeNameMap = {
   "/settings": "Settings",
 };
 
-function SearchField({ mobile = false, open = true, onToggle }) {
+function SearchField({
+  mobile = false,
+  open = true,
+  onToggle,
+  value,
+  onChange,
+  onKeyDown,
+  onSubmit,
+}) {
   if (mobile && !open) {
     return (
       <Tooltip title="Search">
@@ -134,6 +127,9 @@ function SearchField({ mobile = false, open = true, onToggle }) {
     <TextField
       placeholder="Search issues, projects, or people"
       size="small"
+      value={value}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
       sx={{
         width: { xs: "100%", md: 360 },
         "& .MuiOutlinedInput-root": {
@@ -147,6 +143,13 @@ function SearchField({ mobile = false, open = true, onToggle }) {
               <SearchRounded fontSize="small" />
             </InputAdornment>
           ),
+          endAdornment: value ? (
+            <InputAdornment position="end">
+              <Button size="small" onClick={onSubmit}>
+                Search
+              </Button>
+            </InputAdornment>
+          ) : null,
         },
       }}
     />
@@ -165,10 +168,25 @@ export default function MainLayout() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
-  const [openSections, setOpenSections] = useState({ Projects: true });
+  const [searchValue, setSearchValue] = useState("");
 
   const navItems = navConfig[user?.role] || [];
   const currentTitle = routeNameMap[location.pathname] || "Workspace";
+  const searchTarget = useMemo(() => {
+    if (location.pathname.startsWith("/users")) {
+      return "/users";
+    }
+
+    if (location.pathname.startsWith("/assigned-projects")) {
+      return "/assigned-projects";
+    }
+
+    if (location.pathname.startsWith("/projects")) {
+      return "/projects";
+    }
+
+    return "/bugs";
+  }, [location.pathname]);
 
   const breadcrumbs = useMemo(() => {
     const segments = location.pathname.split("/").filter(Boolean);
@@ -185,6 +203,22 @@ export default function MainLayout() {
       };
     });
   }, [location.pathname]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setSearchValue(params.get("search") || "");
+  }, [location.pathname, location.search]);
+
+  const handleSearchSubmit = () => {
+    const trimmedQuery = searchValue.trim();
+    navigate({
+      pathname: searchTarget,
+      search: trimmedQuery ? `?search=${encodeURIComponent(trimmedQuery)}` : "",
+    });
+    if (isMobile) {
+      setSearchOpen(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -223,48 +257,6 @@ export default function MainLayout() {
       <Divider />
       <List sx={{ px: 1.5, py: 2, flex: 1 }}>
         {navItems.map((item) => {
-          const hasChildren = Boolean(item.children?.length);
-          const active = item.to ? location.pathname === item.to : item.children?.some((child) => location.pathname.startsWith(child.to));
-
-          if (hasChildren) {
-            const open = openSections[item.label];
-            return (
-              <Box key={item.label}>
-                <ListItemButton
-                  onClick={() => setOpenSections((current) => ({ ...current, [item.label]: !current[item.label] }))}
-                  sx={{
-                    borderRadius: 2.5,
-                    mb: 0.5,
-                    bgcolor: active ? alpha(theme.palette.primary.main, 0.12) : "transparent",
-                  }}
-                >
-                  <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} slotProps={{ primary: { fontWeight: active ? 700 : 500 } }} />
-                  {open ? <ExpandLessRounded /> : <ExpandMoreRounded />}
-                </ListItemButton>
-                <Collapse in={open} timeout="auto" unmountOnExit>
-                  <List disablePadding sx={{ pl: 2 }}>
-                    {item.children.map((child) => (
-                      <ListItemButton
-                        key={child.to}
-                        component={RouterLink}
-                        to={child.to}
-                        selected={location.pathname === child.to}
-                        onClick={() => setDrawerOpen(false)}
-                        sx={{ borderRadius: 2, mb: 0.5 }}
-                      >
-                        <ListItemIcon sx={{ minWidth: 28 }}>
-                          <ChevronRightRounded fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={child.label} />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                </Collapse>
-              </Box>
-            );
-          }
-
           return (
             <ListItemButton
               key={item.to}
@@ -319,9 +311,30 @@ export default function MainLayout() {
           </Stack>
           <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
             {isMobile ? (
-              <SearchField mobile open={searchOpen} onToggle={() => setSearchOpen((current) => !current)} />
+              <SearchField
+                mobile
+                open={searchOpen}
+                onToggle={() => setSearchOpen((current) => !current)}
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleSearchSubmit();
+                  }
+                }}
+                onSubmit={handleSearchSubmit}
+              />
             ) : (
-              <SearchField />
+              <SearchField
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleSearchSubmit();
+                  }
+                }}
+                onSubmit={handleSearchSubmit}
+              />
             )}
           </Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>

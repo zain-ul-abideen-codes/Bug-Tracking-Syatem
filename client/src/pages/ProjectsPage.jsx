@@ -17,7 +17,7 @@ import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { getUsers } from "../api/usersApi";
 import { createProject, deleteProject, getProjects, updateProject } from "../api/projectsApi";
 import { getBugs } from "../api/bugsApi";
@@ -41,8 +41,10 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [dialog, setDialog] = useState("");
   const [error, setError] = useState("");
+  const [searchParams] = useSearchParams();
 
   const canManageProjects = ["administrator", "manager"].includes(user.role);
+  const searchQuery = searchParams.get("search")?.trim().toLowerCase() || "";
 
   const loadPage = async () => {
     try {
@@ -90,6 +92,20 @@ export default function ProjectsPage() {
       return accumulator;
     }, {});
   }, [bugs]);
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery) {
+      return projects;
+    }
+
+    return projects.filter((project) =>
+      [project.title, project.description, project.manager?.name]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(searchQuery),
+    );
+  }, [projects, searchQuery]);
 
   const handleProjectSubmit = async (payload) => {
     try {
@@ -149,11 +165,19 @@ export default function ProjectsPage() {
 
       {error ? (
         <EmptyState icon={FolderRoundedIcon} title="Projects unavailable" subtitle={error} />
-      ) : !projects.length ? (
-        <EmptyState icon={FolderRoundedIcon} title="No projects yet" subtitle="Create the first project to start assigning QA engineers, developers, and issues." />
+      ) : !filteredProjects.length ? (
+        <EmptyState
+          icon={FolderRoundedIcon}
+          title={searchQuery ? "No matching projects" : "No projects yet"}
+          subtitle={
+            searchQuery
+              ? "Try a different search term to find the project, manager, or description you need."
+              : "Create the first project to start assigning QA engineers, developers, and issues."
+          }
+        />
       ) : (
         <Grid container spacing={2.5} sx={{ alignItems: "stretch" }}>
-          {projects.map((project) => {
+          {filteredProjects.map((project) => {
             const teamMembers = [project.manager, ...(project.qaEngineers || []), ...(project.developers || [])].filter(Boolean);
             return (
               <Grid key={project._id} size={{ xs: 12, sm: 6, lg: 4 }} sx={{ display: "flex" }}>

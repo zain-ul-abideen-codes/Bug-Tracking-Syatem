@@ -207,6 +207,10 @@ const updateBug = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Assigned developer must belong to the selected project.");
   }
 
+  const previousStatus = bug.status;
+  const previousProjectId = String(bug.project._id || bug.project);
+  const previousAssignedDeveloper = String(bug.assignedDeveloper || "");
+
   bug.title = mergedBody.title;
   bug.type = mergedBody.type;
   bug.status = mergedBody.status;
@@ -215,20 +219,20 @@ const updateBug = asyncHandler(async (req, res) => {
   bug.deadline = req.body.deadline ?? bug.deadline;
   bug.assignedDeveloper = req.body.assignedDeveloper ?? bug.assignedDeveloper;
 
-  if (mergedBody.status !== bug.status) {
+  if (mergedBody.status !== previousStatus) {
     pushActivity(
       bug,
       req.user._id,
       "status_changed",
-      `${req.user.name} changed status from ${bug.status} to ${mergedBody.status}.`
+      `${req.user.name} changed status from ${previousStatus} to ${mergedBody.status}.`
     );
   }
 
-  if (mergedBody.project !== String(bug.project._id || bug.project)) {
+  if (mergedBody.project !== previousProjectId) {
     pushActivity(bug, req.user._id, "project_changed", `${req.user.name} moved this issue to another project.`);
   }
 
-  if (req.body.assignedDeveloper !== undefined && String(req.body.assignedDeveloper || "") !== String(bug.assignedDeveloper || "")) {
+  if (req.body.assignedDeveloper !== undefined && String(req.body.assignedDeveloper || "") !== previousAssignedDeveloper) {
     const assignmentMessage = req.body.assignedDeveloper
       ? `${req.user.name} updated the assignee for this issue.`
       : `${req.user.name} removed the assignee from this issue.`;
