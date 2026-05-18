@@ -30,8 +30,8 @@ const mapTrendSeries = (trendData, days) =>
   });
 
 const getDashboardData = asyncHandler(async (req, res) => {
-  let projectFilter = {};
-  let bugFilter = {};
+  let projectFilter = { isArchived: { $ne: true } };
+  let bugFilter = { isArchived: { $ne: true } };
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const endOfToday = new Date();
@@ -39,24 +39,24 @@ const getDashboardData = asyncHandler(async (req, res) => {
   const resolvedTodayPattern = /to (resolved|completed)\.?$/i;
 
   if (req.user.role === ROLES.MANAGER) {
-    const projects = await Project.find({ manager: req.user._id }).select("_id");
+    const projects = await Project.find({ isArchived: { $ne: true }, manager: req.user._id }).select("_id");
     const ids = projects.map((project) => project._id);
-    projectFilter = { _id: { $in: ids } };
-    bugFilter = { project: { $in: ids } };
+    projectFilter = { isArchived: { $ne: true }, _id: { $in: ids } };
+    bugFilter = { isArchived: { $ne: true }, project: { $in: ids } };
   }
 
   if (req.user.role === ROLES.QA) {
-    const projects = await Project.find({ qaEngineers: req.user._id }).select("_id");
+    const projects = await Project.find({ isArchived: { $ne: true }, qaEngineers: req.user._id }).select("_id");
     const ids = projects.map((project) => project._id);
-    projectFilter = { _id: { $in: ids } };
-    bugFilter = { project: { $in: ids } };
+    projectFilter = { isArchived: { $ne: true }, _id: { $in: ids } };
+    bugFilter = { isArchived: { $ne: true }, project: { $in: ids } };
   }
 
   if (req.user.role === ROLES.DEVELOPER) {
-    const projects = await Project.find({ developers: req.user._id }).select("_id");
+    const projects = await Project.find({ isArchived: { $ne: true }, developers: req.user._id }).select("_id");
     const ids = projects.map((project) => project._id);
-    projectFilter = { _id: { $in: ids } };
-    bugFilter = { project: { $in: ids } };
+    projectFilter = { isArchived: { $ne: true }, _id: { $in: ids } };
+    bugFilter = { isArchived: { $ne: true }, project: { $in: ids } };
   }
 
   const [
@@ -96,6 +96,7 @@ const getDashboardData = asyncHandler(async (req, res) => {
           },
         },
         { $unwind: "$project" },
+        { $match: { "project.isArchived": { $ne: true } } },
         { $project: { _id: 0, name: "$project.title", value: "$count" } },
       ]),
       Bug.find(bugFilter)

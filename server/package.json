@@ -8,7 +8,10 @@
     "start": "node src/server.js",
     "seed:admin": "node src/seeds/adminSeed.js",
     "seed:demo-users": "node src/seeds/demoUsersSeed.js",
-    "seed:sample-data": "node src/seeds/sampleDataSeed.js"
+    "seed:sample-data": "node src/seeds/sampleDataSeed.js",
+    "seed:defaults": "node src/seeds/defaultDataSeed.js",
+    "backup:data": "node src/seeds/backupData.js",
+    "restore:backup": "node src/seeds/restoreBackup.js"
   },
   "dependencies": {
     "@langchain/core": "^1.1.42",

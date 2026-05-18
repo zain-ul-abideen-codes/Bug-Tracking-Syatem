@@ -11,18 +11,18 @@ const projectPopulate = [
 ];
 
 const listProjects = asyncHandler(async (req, res) => {
-  let query = {};
+  let query = { isArchived: { $ne: true } };
 
   if (req.user.role === ROLES.MANAGER) {
-    query = { $or: [{ manager: req.user._id }] };
+    query = { isArchived: { $ne: true }, $or: [{ manager: req.user._id }] };
   }
 
   if (req.user.role === ROLES.QA) {
-    query = { qaEngineers: req.user._id };
+    query = { isArchived: { $ne: true }, qaEngineers: req.user._id };
   }
 
   if (req.user.role === ROLES.DEVELOPER) {
-    query = { developers: req.user._id };
+    query = { isArchived: { $ne: true }, developers: req.user._id };
   }
 
   const projects = await Project.find(query).populate(projectPopulate).sort({ createdAt: -1 });
@@ -35,7 +35,7 @@ const createProject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Validation failed", errors });
   }
 
-  const existingProject = await Project.findOne({ title: req.body.title.trim() });
+  const existingProject = await Project.findOne({ title: req.body.title.trim(), isArchived: { $ne: true } });
   if (existingProject) {
     throw new ApiError(409, "Project title must be unique.");
   }
@@ -58,13 +58,13 @@ const updateProject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Validation failed", errors });
   }
 
-  const project = await Project.findById(req.params.id);
+  const project = await Project.findOne({ _id: req.params.id, isArchived: { $ne: true } });
   if (!project) {
     throw new ApiError(404, "Project not found.");
   }
 
   if (req.body.title.trim() !== project.title) {
-    const existingProject = await Project.findOne({ title: req.body.title.trim() });
+    const existingProject = await Project.findOne({ title: req.body.title.trim(), isArchived: { $ne: true } });
     if (existingProject) {
       throw new ApiError(409, "Project title must be unique.");
     }
@@ -86,7 +86,7 @@ const updateProject = asyncHandler(async (req, res) => {
 });
 
 const deleteProject = asyncHandler(async (req, res) => {
-  const project = await Project.findById(req.params.id);
+  const project = await Project.findOne({ _id: req.params.id, isArchived: { $ne: true } });
   if (!project) {
     throw new ApiError(404, "Project not found.");
   }
@@ -95,8 +95,12 @@ const deleteProject = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Managers can only delete their own projects.");
   }
 
-  await project.deleteOne();
-  res.status(200).json({ message: "Project deleted successfully." });
+  project.isArchived = true;
+  project.archivedAt = new Date();
+  project.archivedBy = req.user._id;
+  await project.save();
+
+  res.status(200).json({ message: "Project archived successfully." });
 });
 
 module.exports = {

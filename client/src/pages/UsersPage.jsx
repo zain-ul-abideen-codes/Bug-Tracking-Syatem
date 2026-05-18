@@ -129,7 +129,7 @@ export default function UsersPage() {
         .map((record) => ({
         id: record._id,
         ...record,
-        assignedProjects: projectMapByUser[String(record._id)] || [],
+        assignedProjects: record.assignedProjects || projectMapByUser[String(record._id)] || [],
       })),
     [projectMapByUser, searchQuery, users],
   );

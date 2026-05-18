@@ -1,6 +1,7 @@
 const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const User = require("../models/User");
+const Project = require("../models/Project");
 const { ROLES } = require("../utils/constants");
 const { validateUserInput } = require("../validators/userValidator");
 
@@ -17,7 +18,88 @@ const listUsers = asyncHandler(async (req, res) => {
   }
 
   const users = await User.find(query).select("-password -refreshToken").sort({ createdAt: -1 });
-  res.status(200).json({ users });
+
+  const visibleUsers = users.map((record) => ({
+    _id: String(record._id),
+    name: record.name,
+    email: record.email,
+    role: record.role,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  }));
+
+  const userIds = visibleUsers.map((record) => record._id);
+  const assignmentsByUser = {};
+
+  if (userIds.length) {
+    const projects = await Project.find({
+      isArchived: { $ne: true },
+      $or: [
+        { manager: { $in: userIds } },
+        { qaEngineers: { $in: userIds } },
+        { developers: { $in: userIds } },
+      ],
+    })
+      .select("title manager qaEngineers developers")
+      .lean();
+
+    projects.forEach((project) => {
+      const links = [
+        project.manager ? { userId: String(project.manager), role: "manager" } : null,
+        ...(project.qaEngineers || []).map((member) => ({
+          userId: String(member),
+          role: "qa",
+        })),
+        ...(project.developers || []).map((member) => ({
+          userId: String(member),
+          role: "developer",
+        })),
+      ].filter(Boolean);
+
+      links.forEach(({ userId, role }) => {
+        if (!assignmentsByUser[userId]) {
+          assignmentsByUser[userId] = [];
+        }
+
+        assignmentsByUser[userId].push({
+          _id: String(project._id),
+          title: project.title,
+          role,
+        });
+      });
+    });
+
+    const adminUserIds = visibleUsers
+      .filter((record) => record.role === ROLES.ADMIN)
+      .map((record) => record._id);
+
+    if (adminUserIds.length) {
+      const allVisibleProjects = await Project.find({ isArchived: { $ne: true } })
+        .select("title")
+        .lean();
+
+      adminUserIds.forEach((adminUserId) => {
+        if (!assignmentsByUser[adminUserId]) {
+          assignmentsByUser[adminUserId] = [];
+        }
+
+        allVisibleProjects.forEach((project) => {
+          assignmentsByUser[adminUserId].push({
+            _id: String(project._id),
+            title: project.title,
+            role: "administrator",
+          });
+        });
+      });
+    }
+  }
+
+  const usersWithAssignments = visibleUsers.map((record) => ({
+    ...record,
+    assignedProjects: assignmentsByUser[record._id] || [],
+  }));
+
+  res.status(200).json({ users: usersWithAssignments });
 });
 
 const getUserById = asyncHandler(async (req, res) => {

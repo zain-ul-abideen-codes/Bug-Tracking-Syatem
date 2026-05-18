@@ -7,6 +7,7 @@ const projectRoot = path.resolve(__dirname, "..");
 const mongoDbPath = "D:\\mongodb-data";
 const mongoExe = "C:\\Program Files\\MongoDB\\Server\\8.0\\bin\\mongod.exe";
 const serverEntry = path.join(projectRoot, "server", "src", "server.js");
+const backupEntry = path.join(projectRoot, "server", "src", "seeds", "backupData.js");
 const childProcesses = [];
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -240,6 +241,27 @@ const startBackend = () => {
   return backendProcess;
 };
 
+const backupDatabaseSnapshot = () => {
+  if (!fs.existsSync(backupEntry)) {
+    return;
+  }
+
+  try {
+    process.stdout.write("[backup] Saving local database snapshot...\n");
+    execSync(`"${process.execPath}" "${backupEntry}"`, {
+      cwd: path.join(projectRoot, "server"),
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    process.stdout.write("[backup] Backup snapshot updated in server/backups/latest\n");
+  } catch (error) {
+    const stderr = error.stderr?.toString?.().trim();
+    const stdout = error.stdout?.toString?.().trim();
+    const message = stderr || stdout || error.message;
+    process.stderr.write(`[backup] ${message}\n`);
+  }
+};
+
 const startFrontend = async () => {
   if (await isFrontendPortOpen(5173)) {
     process.stdout.write("[client] Frontend already running on port 5173. Reusing existing dev server.\n");
@@ -267,6 +289,7 @@ const main = async () => {
     }
 
     const mongoProcess = await startMongo();
+    backupDatabaseSnapshot();
     const backendProcess = startBackend();
     const backendReady = await waitForPort(5000, 30);
 

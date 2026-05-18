@@ -22,7 +22,7 @@ import { Controller, useForm } from "react-hook-form";
 export default function ProjectModal({ open, loading, project, users, currentRole, onClose, onSubmit }) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const managers = users.filter((record) => ["administrator", "manager"].includes(record.role));
+  const managers = users.filter((record) => record.role === "manager");
   const qaEngineers = users.filter((record) => record.role === "qa");
   const developers = users.filter((record) => record.role === "developer");
 

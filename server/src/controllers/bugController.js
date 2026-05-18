@@ -32,20 +32,20 @@ const canAccessProject = (project, user) => {
 };
 
 const listBugs = asyncHandler(async (req, res) => {
-  let query = {};
+  let query = { isArchived: { $ne: true } };
 
   if (req.user.role === ROLES.DEVELOPER) {
-    query = { assignedDeveloper: req.user._id };
+    query = { isArchived: { $ne: true }, assignedDeveloper: req.user._id };
   }
 
   if (req.user.role === ROLES.QA) {
-    const projects = await Project.find({ qaEngineers: req.user._id }).select("_id");
-    query = { project: { $in: projects.map((item) => item._id) } };
+    const projects = await Project.find({ isArchived: { $ne: true }, qaEngineers: req.user._id }).select("_id");
+    query = { isArchived: { $ne: true }, project: { $in: projects.map((item) => item._id) } };
   }
 
   if (req.user.role === ROLES.MANAGER) {
-    const projects = await Project.find({ manager: req.user._id }).select("_id");
-    query = { project: { $in: projects.map((item) => item._id) } };
+    const projects = await Project.find({ isArchived: { $ne: true }, manager: req.user._id }).select("_id");
+    query = { isArchived: { $ne: true }, project: { $in: projects.map((item) => item._id) } };
   }
 
   const bugs = await Bug.find(query).populate(bugPopulate).sort({ createdAt: -1 });
@@ -61,7 +61,7 @@ const createBug = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Validation failed", errors });
   }
 
-  const project = await Project.findById(req.body.project);
+  const project = await Project.findOne({ _id: req.body.project, isArchived: { $ne: true } });
   if (!project) {
     if (req.file) {
       await removeFileIfExists(req.file.path);
@@ -110,7 +110,7 @@ const createBug = asyncHandler(async (req, res) => {
 });
 
 const updateBug = asyncHandler(async (req, res) => {
-  const bug = await Bug.findById(req.params.id).populate("project");
+  const bug = await Bug.findOne({ _id: req.params.id, isArchived: { $ne: true } }).populate("project");
   if (!bug) {
     if (req.file) {
       await removeFileIfExists(req.file.path);
@@ -182,7 +182,7 @@ const updateBug = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Validation failed", errors });
   }
 
-  const nextProject = await Project.findById(mergedBody.project);
+  const nextProject = await Project.findOne({ _id: mergedBody.project, isArchived: { $ne: true } });
   if (!nextProject) {
     if (req.file) {
       await removeFileIfExists(req.file.path);
@@ -260,7 +260,7 @@ const updateBug = asyncHandler(async (req, res) => {
 });
 
 const deleteBug = asyncHandler(async (req, res) => {
-  const bug = await Bug.findById(req.params.id);
+  const bug = await Bug.findOne({ _id: req.params.id, isArchived: { $ne: true } });
   if (!bug) {
     throw new ApiError(404, "Issue not found.");
   }
@@ -273,13 +273,15 @@ const deleteBug = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You cannot delete this issue.");
   }
 
-  await removeFileIfExists(bug.screenshot);
-  await bug.deleteOne();
-  res.status(200).json({ message: "Issue deleted successfully." });
+  bug.isArchived = true;
+  bug.archivedAt = new Date();
+  bug.archivedBy = req.user._id;
+  await bug.save();
+  res.status(200).json({ message: "Issue archived successfully." });
 });
 
 const addComment = asyncHandler(async (req, res) => {
-  const bug = await Bug.findById(req.params.id).populate("project");
+  const bug = await Bug.findOne({ _id: req.params.id, isArchived: { $ne: true } }).populate("project");
   if (!bug) {
     throw new ApiError(404, "Issue not found.");
   }

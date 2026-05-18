@@ -131,7 +131,7 @@ export default function ProjectsPage() {
     try {
       setDeleteLoading(true);
       await deleteProject(selectedProject._id);
-      notify("Project deleted successfully.", "success");
+      notify("Project archived successfully.", "success");
       setDialog("");
       setSelectedProject(null);
       await loadPage();
@@ -298,9 +298,9 @@ export default function ProjectsPage() {
       <ConfirmDialog
         open={dialog === "delete"}
         loading={deleteLoading}
-        title="Delete project"
-        description={`Delete ${selectedProject?.title || "this project"}? This will remove the project record from the system.`}
-        confirmLabel="Delete"
+        title="Archive project"
+        description={`Archive ${selectedProject?.title || "this project"}? It will be hidden from the app but kept safely in the database.`}
+        confirmLabel="Archive"
         onClose={() => setDialog("")}
         onConfirm={handleDelete}
       />

@@ -281,6 +281,60 @@ npm run seed:demo-users --prefix server
 npm run seed:sample-data --prefix server
 ```
 
+### Restore Default Database Data in One Command
+
+If your important starter data is removed from the database, you can restore the default dataset with a single command:
+
+```powershell
+npm run seed:defaults
+```
+
+This command restores the core project seed data, including:
+
+- the administrator account
+- demo manager, QA engineer, and developer accounts
+- the default sample project
+- sample issues with comments and activity history
+
+Use this after starting MongoDB and the backend development environment. It is intended as a quick recovery option when your default working data is missing and you need to repopulate the database for testing or demonstrations.
+
+## Backup and Restore
+
+Local JSON backups are now supported so your MongoDB data can be restored if records are removed accidentally.
+
+### Create a Backup Snapshot
+
+```powershell
+npm run backup:data
+```
+
+This saves a timestamped snapshot inside:
+
+- `server/backups/<timestamp>`
+- `server/backups/latest`
+
+### Restore the Latest Backup
+
+```powershell
+npm run restore:backup
+```
+
+### Restore a Specific Backup Snapshot
+
+```powershell
+npm run restore:backup -- 2026-05-16T10-45-00-000Z
+```
+
+### Automatic Backup on Dev Start
+
+Whenever you run:
+
+```powershell
+npm run dev
+```
+
+the launcher will try to refresh `server/backups/latest` before starting the backend, so a recent local restore point stays available during development.
+
 ## Demo Credentials
 
 ### Administrator

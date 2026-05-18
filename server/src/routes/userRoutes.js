@@ -1,4 +1,4 @@
-const express = require("express");
+  const express = require("express");
 const authenticate = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
 const validateObjectId = require("../middleware/validateObjectId");

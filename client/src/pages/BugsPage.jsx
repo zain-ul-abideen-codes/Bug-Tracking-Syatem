@@ -644,26 +644,52 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     {
       field: "actions",
       headerName: "Actions",
-      minWidth: 130,
+      minWidth: 170,
       sortable: false,
-      renderCell: ({ row }) => (
-        <Stack direction="row" spacing={0.5}>
-          {canEdit(row) ? (
-            <Tooltip title={user.role === "developer" ? "Update Status" : "Edit"}>
-              <IconButton onClick={() => { setSelectedBug(row); setSubmitError(""); setDialog("bug"); }}>
-                <EditRoundedIcon fontSize="small" />
+      renderCell: ({ row }) => {
+        const editable = canEdit(row);
+        const deletable = canDelete(row);
+        const editTooltip =
+          user.role === "developer"
+            ? editable
+              ? "Update Status"
+              : "Only assigned issues can be updated"
+            : editable
+              ? "Edit"
+              : "Only your own created issues can be edited";
+        const deleteTooltip = deletable ? "Delete" : "Only your own created issues can be deleted";
+
+        return (
+          <Stack direction="row" spacing={0.5}>
+            <Tooltip title="View details">
+              <IconButton onClick={() => setDetailBug(row)}>
+                <VisibilityRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-          ) : null}
-          {canDelete(row) ? (
-            <Tooltip title="Delete">
-              <IconButton color="error" onClick={() => { setSelectedBug(row); setDialog("delete"); }}>
-                <DeleteRoundedIcon fontSize="small" />
-              </IconButton>
+            <Tooltip title={editTooltip}>
+              <span>
+                <IconButton
+                  disabled={!editable}
+                  onClick={() => { setSelectedBug(row); setSubmitError(""); setDialog("bug"); }}
+                >
+                  <EditRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
-          ) : null}
-        </Stack>
-      ),
+            <Tooltip title={deleteTooltip}>
+              <span>
+                <IconButton
+                  color="error"
+                  disabled={!deletable}
+                  onClick={() => { setSelectedBug(row); setDialog("delete"); }}
+                >
+                  <DeleteRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
+        );
+      },
     },
   ];
 
@@ -706,7 +732,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       setDeleteLoading(true);
       await deleteBug(getBugId(selectedBug));
       window.dispatchEvent(new CustomEvent("bugtracker:issues-changed"));
-      notify("Issue deleted successfully.", "success");
+        notify("Issue archived successfully.", "success");
       setDialog("");
       setSelectedBug(null);
       await loadPage();
@@ -1311,9 +1337,9 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       <ConfirmDialog
         open={dialog === "delete"}
         loading={deleteLoading}
-        title="Delete issue"
-        description={`Delete ${selectedBug?.title || "this issue"}? The screenshot file will also be removed.`}
-        confirmLabel="Delete"
+        title="Archive issue"
+        description={`Archive ${selectedBug?.title || "this issue"}? It will be hidden from the app but kept safely in the database.`}
+        confirmLabel="Archive"
         onClose={() => setDialog("")}
         onConfirm={handleDelete}
       />

@@ -5,9 +5,13 @@
   "scripts": {
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "dev": "node scripts/run-dev.js",
-    "seed:admin": "npm run seed:admin --prefix server"
+    "seed:admin": "npm run seed:admin --prefix server",
+    "seed:defaults": "npm run seed:defaults --prefix server",
+    "backup:data": "npm run backup:data --prefix server",
+    "restore:backup": "npm run restore:backup --prefix server"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "pptxgenjs": "^4.0.1"
   }
 }
