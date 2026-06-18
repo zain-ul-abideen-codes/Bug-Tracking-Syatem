@@ -25,6 +25,7 @@ const env = {
   seedAdminEmail: process.env.SEED_ADMIN_EMAIL,
   seedAdminPassword: process.env.SEED_ADMIN_PASSWORD,
   openAiApiKey: process.env.OPENAI_API_KEY,
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   agentModel: process.env.AGENT_MODEL || "gpt-4o",
   agentMaxTokens: process.env.AGENT_MAX_TOKENS || "1000",
   agentTemperature: process.env.AGENT_TEMPERATURE || "0",

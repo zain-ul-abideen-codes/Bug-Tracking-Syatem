@@ -2,9 +2,10 @@ const ApiError = require("../utils/apiError");
 const asyncHandler = require("../utils/asyncHandler");
 const Bug = require("../models/Bug");
 const Project = require("../models/Project");
-const { BUG_STATUS, ROLES } = require("../utils/constants");
+const { BUG_PRIORITY, BUG_STATUS, ROLES } = require("../utils/constants");
 const { removeFileIfExists } = require("../utils/fileUtils");
 const { validateBugInput } = require("../validators/bugValidator");
+const { suggestBugPriority: analyzeBugPriority } = require("../services/prioritySuggestionService");
 
 const bugPopulate = [
   { path: "project", select: "title" },
@@ -29,6 +30,22 @@ const canAccessProject = (project, user) => {
   if (user.role === ROLES.DEVELOPER)
     return project.developers.some((id) => String(id) === String(user._id));
   return false;
+};
+
+const normalizePriorityPayload = (body = {}) => {
+  const priority = BUG_PRIORITY.includes(body.priority) ? body.priority : "Medium";
+  const prioritySource = body.prioritySource === "ai" ? "ai" : "manual";
+  const confidence = Number(body.aiConfidence);
+
+  return {
+    priority,
+    prioritySource,
+    aiSuggestedPriority: BUG_PRIORITY.includes(body.aiSuggestedPriority) ? body.aiSuggestedPriority : null,
+    aiConfidence: body.aiConfidence === undefined || body.aiConfidence === "" || Number.isNaN(confidence)
+      ? null
+      : Math.min(100, Math.max(0, Math.round(confidence))),
+    aiReason: body.aiReason?.trim() || "",
+  };
 };
 
 const listBugs = asyncHandler(async (req, res) => {
@@ -76,6 +93,11 @@ const createBug = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You cannot create issues in this project.");
   }
 
+  if (req.user.role === ROLES.MANAGER && req.file) {
+    await removeFileIfExists(req.file.path);
+    throw new ApiError(403, "Managers cannot upload issue screenshots.");
+  }
+
   if (
     req.body.assignedDeveloper &&
     !project.developers.some((id) => String(id) === String(req.body.assignedDeveloper))
@@ -90,12 +112,17 @@ const createBug = asyncHandler(async (req, res) => {
     title: req.body.title,
     type: req.body.type,
     status: req.body.status,
+    ...normalizePriorityPayload(req.body),
     project: req.body.project,
     description: req.body.description || "",
+    stepsToReproduce: req.body.stepsToReproduce || "",
+    expectedResult: req.body.expectedResult || "",
+    actualResult: req.body.actualResult || "",
     deadline: req.body.deadline || null,
     screenshot: req.file ? `/uploads/${req.file.filename}` : null,
     assignedDeveloper: req.body.assignedDeveloper || null,
     createdBy: req.user._id,
+    aiGenerated: req.body.aiGenerated === "true" || req.body.aiGenerated === true,
     activity: [
       {
         actor: req.user._id,
@@ -107,6 +134,25 @@ const createBug = asyncHandler(async (req, res) => {
 
   const populated = await Bug.findById(bug._id).populate(bugPopulate);
   res.status(201).json({ message: "Issue created successfully.", bug: populated });
+});
+
+const suggestPriority = asyncHandler(async (req, res) => {
+  const title = req.body.title?.trim();
+  const description = req.body.description?.trim();
+
+  if (!title || !description) {
+    throw new ApiError(400, "Title and description are required.");
+  }
+
+  try {
+    const suggestion = await analyzeBugPriority({ title, description });
+    return res.status(200).json(suggestion);
+  } catch (error) {
+    if (error.statusCode) {
+      throw error;
+    }
+    throw new ApiError(502, "Priority suggestion service is temporarily unavailable.");
+  }
 });
 
 const updateBug = asyncHandler(async (req, res) => {
@@ -214,8 +260,29 @@ const updateBug = asyncHandler(async (req, res) => {
   bug.title = mergedBody.title;
   bug.type = mergedBody.type;
   bug.status = mergedBody.status;
+  if (req.body.priority !== undefined) {
+    bug.priority = BUG_PRIORITY.includes(req.body.priority) ? req.body.priority : bug.priority;
+  }
+  if (req.body.prioritySource !== undefined) {
+    bug.prioritySource = req.body.prioritySource === "ai" ? "ai" : "manual";
+  }
+  if (req.body.aiSuggestedPriority !== undefined) {
+    bug.aiSuggestedPriority = BUG_PRIORITY.includes(req.body.aiSuggestedPriority)
+      ? req.body.aiSuggestedPriority
+      : null;
+  }
+  if (req.body.aiConfidence !== undefined) {
+    const confidence = Number(req.body.aiConfidence);
+    bug.aiConfidence = Number.isNaN(confidence) ? null : Math.min(100, Math.max(0, Math.round(confidence)));
+  }
+  if (req.body.aiReason !== undefined) {
+    bug.aiReason = req.body.aiReason?.trim() || "";
+  }
   bug.project = mergedBody.project;
   bug.description = req.body.description ?? bug.description;
+  bug.stepsToReproduce = req.body.stepsToReproduce ?? bug.stepsToReproduce;
+  bug.expectedResult = req.body.expectedResult ?? bug.expectedResult;
+  bug.actualResult = req.body.actualResult ?? bug.actualResult;
   bug.deadline = req.body.deadline ?? bug.deadline;
   bug.assignedDeveloper = req.body.assignedDeveloper ?? bug.assignedDeveloper;
 
@@ -314,6 +381,7 @@ const addComment = asyncHandler(async (req, res) => {
 
 module.exports = {
   listBugs,
+  suggestPriority,
   createBug,
   updateBug,
   deleteBug,

@@ -29,6 +29,35 @@ const listProjects = asyncHandler(async (req, res) => {
   res.status(200).json({ projects });
 });
 
+const canAccessProject = (project, user) => {
+  if (user.role === ROLES.ADMIN) return true;
+  if (user.role === ROLES.MANAGER) return String(project.manager?._id || project.manager) === String(user._id);
+  if (user.role === ROLES.QA) return project.qaEngineers.some((member) => String(member._id || member) === String(user._id));
+  if (user.role === ROLES.DEVELOPER) return project.developers.some((member) => String(member._id || member) === String(user._id));
+  return false;
+};
+
+const getProjectMembers = asyncHandler(async (req, res) => {
+  const project = await Project.findOne({ _id: req.params.projectId, isArchived: { $ne: true } })
+    .populate("developers", "name email role")
+    .populate("qaEngineers", "name email role")
+    .populate("manager", "name email role");
+
+  if (!project) {
+    throw new ApiError(404, "Project not found.");
+  }
+
+  if (!canAccessProject(project, req.user)) {
+    throw new ApiError(403, "You cannot view members for this project.");
+  }
+
+  res.status(200).json({
+    developers: project.developers || [],
+    qaEngineers: project.qaEngineers || [],
+    manager: project.manager || null,
+  });
+});
+
 const createProject = asyncHandler(async (req, res) => {
   const errors = validateProjectInput(req.body);
   if (Object.keys(errors).length) {
@@ -105,6 +134,7 @@ const deleteProject = asyncHandler(async (req, res) => {
 
 module.exports = {
   listProjects,
+  getProjectMembers,
   createProject,
   updateProject,
   deleteProject,

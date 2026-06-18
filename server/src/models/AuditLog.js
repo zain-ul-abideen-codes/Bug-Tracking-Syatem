@@ -38,9 +38,26 @@ const auditLogSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    responseTimeMs: {
+      type: Number,
+      default: 0,
+    },
     tokensUsed: {
       type: Number,
       default: 0,
+    },
+    promptTokens: {
+      type: Number,
+      default: 0,
+    },
+    completionTokens: {
+      type: Number,
+      default: 0,
+    },
+    modelUsed: {
+      type: String,
+      default: "gpt-4o",
+      trim: true,
     },
     ipAddress: {
       type: String,

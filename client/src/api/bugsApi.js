@@ -14,6 +14,11 @@ export const createBug = async (payload) => {
   return data;
 };
 
+export const suggestBugPriority = async ({ title, description }) => {
+  const { data } = await api.post("/bugs/suggest-priority", { title, description });
+  return data;
+};
+
 export const updateBug = async (id, payload) => {
   const config =
     payload instanceof FormData

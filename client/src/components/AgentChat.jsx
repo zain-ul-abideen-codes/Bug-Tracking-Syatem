@@ -1,105 +1,80 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  IconButton,
-  InputAdornment,
-  Paper,
-  Stack,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import {
-  AutoAwesomeRounded,
-  CheckCircleRounded,
-  MicOutlined,
-  RefreshRounded,
-  SearchRounded,
-  SendRounded,
-  SmartToyRounded,
-} from "@mui/icons-material";
+import { Alert, Box, Button, Chip, CircularProgress, IconButton, Paper, Stack, TextField, Typography } from "@mui/material";
+import { DeleteSweepRounded, MicOutlined, SendRounded } from "@mui/icons-material";
 import useAgentChat from "../hooks/useAgentChat";
 import BugBotRenderer from "./BugBotRenderer";
 import useAuth from "../hooks/useAuth";
 
 const rolePrompts = {
   administrator: [
-    "Show my projects",
-    "Show dashboard stats",
-    "Show open bugs",
+    { label: "Stats", message: "Show dashboard statistics" },
+    { label: "Open Bugs", message: "Show all open bugs" },
+    { label: "Projects", message: "Show my projects" },
+    { label: "Critical", message: "Show critical priority bugs" },
   ],
   manager: [
-    "Show my projects and bugs",
-    "Which project has most bugs?",
-    "Show unassigned bugs",
+    { label: "Project Load", message: "Show my projects and their bug counts" },
+    { label: "Open Bugs", message: "Show open bugs in my projects" },
+    { label: "Unassigned", message: "Show unassigned bugs" },
+    { label: "Stats", message: "Show dashboard statistics" },
   ],
   qa: [
-    "Show my bugs",
-    "Find bugs login error",
-    "Show dashboard stats",
+    { label: "My Bugs", message: "Show bugs I reported" },
+    { label: "New Bugs", message: "Show new bugs" },
+    { label: "Login Bugs", message: "Find bugs related to login" },
+    { label: "Projects", message: "Show my projects" },
   ],
   developer: [
-    "Show my bugs",
-    "What's my workload today?",
-    "Show started issues",
+    { label: "My Bugs", message: "Show my assigned bugs" },
+    { label: "Started", message: "Show my started issues" },
+    { label: "Workload", message: "What's my workload today?" },
+    { label: "Critical", message: "Show my critical bugs" },
   ],
 };
+
+const formatTime = () =>
+  new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date());
 
 export default function AgentChat({ chat }) {
   const { user } = useAuth();
   const agentChat = chat || useAgentChat();
-  const {
-    messages,
-    alerts,
-    sessionId,
-    loading,
-    error,
-    sendMessage,
-    startNewChat,
-  } = agentChat;
+  const { messages, alerts, sessionId, loading, error, sendMessage, startNewChat } = agentChat;
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
+  const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  const suggestions = useMemo(
-    () => rolePrompts[user?.role] || rolePrompts.developer,
-    [user?.role],
-  );
+  const suggestions = useMemo(() => rolePrompts[user?.role] || rolePrompts.developer, [user?.role]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  const submitMessage = async (message = draft) => {
+    const nextMessage = message.trim();
+    if (!nextMessage || loading) return;
+    setDraft("");
+    await sendMessage(nextMessage);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const currentDraft = draft;
-    setDraft("");
-    await sendMessage(currentDraft);
+    await submitMessage();
   };
 
   const handleKeyDown = async (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!draft.trim() || loading) {
-        return;
-      }
-      const currentDraft = draft;
-      setDraft("");
-      await sendMessage(currentDraft);
+      await submitMessage();
     }
   };
 
   const handleVoiceInput = () => {
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) {
-      return;
-    }
+    if (!Recognition) return;
 
     const recognition = new Recognition();
     recognition.lang = "en-US";
@@ -110,278 +85,330 @@ export default function AgentChat({ chat }) {
     recognition.onresult = (event) => {
       setDraft(event.results[0][0].transcript);
     };
-    recognition.onerror = () => {
-      setListening(false);
-    };
-    recognition.onend = () => {
-      setListening(false);
-    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
   };
 
   return (
-    <Stack spacing={3}>
-      <Paper
+    <Paper
+      sx={{
+        overflow: "hidden",
+        border: "1px solid rgba(124,58,237,0.28)",
+        borderRadius: 5,
+        bgcolor: "#0a0f1e",
+        color: "#e2e8f0",
+        boxShadow: "0 30px 90px rgba(15,23,42,0.45)",
+      }}
+    >
+      <Box
         sx={{
-          p: { xs: 3, md: 4 },
-          color: "white",
-          background:
-            "linear-gradient(135deg, rgba(25,118,210,0.98), rgba(66,165,245,0.95) 55%, rgba(156,39,176,0.88))",
+          p: 2.5,
+          background: "linear-gradient(135deg, #7c3aed, #2563eb)",
         }}
       >
-        <Stack spacing={2}>
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={2}
-            sx={{
-              justifyContent: "space-between",
-              alignItems: { xs: "flex-start", md: "center" },
-            }}
-          >
+        <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 46,
+                height: 46,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "50%",
+                bgcolor: "rgba(255,255,255,0.16)",
+                fontSize: 24,
+              }}
+            >
+              BOT
+            </Box>
             <Box>
-              <Typography sx={{ letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.85 }}>
-                AI Agent
+              <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1 }}>
+                BugBot
               </Typography>
-              <Typography variant="h4" sx={{ mt: 1, fontWeight: 800 }}>
-                BugBot Streaming Workspace
-              </Typography>
-              <Typography sx={{ mt: 1.25, maxWidth: 860, opacity: 0.9 }}>
-                Real-time answers, tool-aware updates, proactive alerts, and role-safe actions for your bug tracking workflow.
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.85)" }}>
+                Online | Session: {messages.length} messages{sessionId ? ` | ${sessionId.slice(0, 8)}` : ""}
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<RefreshRounded />}
-              onClick={startNewChat}
-            >
-              New Chat
-            </Button>
           </Stack>
-
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip icon={<AutoAwesomeRounded />} label={`${user?.role} scope`} sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "white" }} />
-            <Chip icon={<SearchRounded />} label="Streaming responses" sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "white" }} />
-            <Chip icon={<SmartToyRounded />} label="Fast intent + cache" sx={{ bgcolor: "rgba(255,255,255,0.14)", color: "white" }} />
-          </Stack>
+          <Button
+            variant="contained"
+            color="inherit"
+            startIcon={<DeleteSweepRounded />}
+            onClick={startNewChat}
+            sx={{ color: "#0f172a", fontWeight: 900 }}
+          >
+            Clear
+          </Button>
         </Stack>
-      </Paper>
+      </Box>
 
-      {alerts.length > 0 && (
-        <Stack spacing={1.25}>
-          {alerts.map((alert) => (
-            <Alert
-              key={alert.message}
-              severity={alert.severity || "warning"}
-              onClose={() => {}}
+      <Box sx={{ p: 2.25, borderBottom: "1px solid #334155", bgcolor: "#0f172a" }}>
+        <Typography sx={{ mb: 1.25, color: "#94a3b8", fontWeight: 800 }}>
+          Quick actions
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+            gap: 1,
+          }}
+        >
+          {suggestions.map((prompt) => (
+            <Button
+              key={prompt.message}
+              variant="outlined"
+              onClick={() => {
+                setDraft(prompt.message);
+                inputRef.current?.focus();
+              }}
+              sx={{
+                justifyContent: "flex-start",
+                borderColor: "rgba(124,58,237,0.45)",
+                color: "#c4b5fd",
+                textTransform: "none",
+                "&:hover": { borderColor: "#7c3aed", bgcolor: "rgba(124,58,237,0.12)" },
+              }}
             >
+              {prompt.label}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+
+      {alerts.length > 0 ? (
+        <Stack spacing={1} sx={{ p: 2, bgcolor: "#0f172a" }}>
+          {alerts.map((alert) => (
+            <Alert key={alert.message} severity={alert.severity || "warning"}>
               {alert.message}
             </Alert>
           ))}
         </Stack>
-      )}
+      ) : null}
 
-      <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h6">Quick Prompts</Typography>
-        <Typography color="text.secondary" sx={{ mb: 1.5 }}>
-          Role-based prompt starters you can click and send.
-        </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {suggestions.map((prompt) => (
-            <Chip key={prompt} label={prompt} onClick={() => setDraft(prompt)} />
-          ))}
-        </Stack>
-      </Paper>
+      <Stack
+        spacing={2}
+        sx={{
+          height: { xs: "58vh", md: 560 },
+          overflowY: "auto",
+          p: 2.5,
+          bgcolor: "#0a0f1e",
+          scrollbarColor: "#334155 transparent",
+        }}
+      >
+        {messages.length === 0 ? (
+          <Paper
+            sx={{
+              p: 3,
+              textAlign: "center",
+              border: "1px dashed rgba(124,58,237,0.45)",
+              bgcolor: "rgba(30,41,59,0.56)",
+              color: "#e2e8f0",
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 900 }}>
+              Start chatting with BugBot
+            </Typography>
+            <Typography sx={{ color: "#94a3b8" }}>
+              Ask about bugs, projects, dashboard stats, or role-safe workflow actions.
+            </Typography>
+          </Paper>
+        ) : null}
 
-      <Paper sx={{ overflow: "hidden" }}>
-        <Box sx={{ p: 2.5, bgcolor: "rgba(25,118,210,0.05)", borderBottom: "1px solid rgba(15,23,42,0.08)" }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <Avatar sx={{ bgcolor: "primary.main" }}>
-              <SmartToyRounded />
-            </Avatar>
-            <Box>
-              <Typography variant="h6">Live Conversation</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Session: {sessionId || "A new session will be created on your first message."}
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-
-        <Stack sx={{ p: 2.5, minHeight: 500, maxHeight: 640, overflowY: "auto" }} spacing={2}>
-          {messages.length === 0 && (
-            <Paper
-              variant="outlined"
-              sx={{ p: 3, borderStyle: "dashed", textAlign: "center" }}
+        {messages.map((message) => {
+          const isUser = message.role === "user";
+          return (
+            <Stack
+              key={message.id}
+              direction="row"
+              spacing={1.25}
+              sx={{
+                justifyContent: isUser ? "flex-end" : "flex-start",
+                animation: "fadeIn 0.25s ease",
+              }}
             >
-              <Typography variant="h6">Start chatting with BugBot</Typography>
-              <Typography color="text.secondary">
-                Ask about bugs, projects, dashboards, or use voice input to fill the prompt.
-              </Typography>
-            </Paper>
-          )}
-
-          {messages.map((message) => {
-            const isAssistant = message.role === "assistant";
-            return (
-              <Stack
-                key={message.id}
-                direction="row"
-                spacing={1.25}
-                sx={{ justifyContent: isAssistant ? "flex-start" : "flex-end" }}
-              >
-                {isAssistant && (
-                  <Avatar sx={{ bgcolor: "primary.main", width: 38, height: 38 }}>
-                    <SmartToyRounded fontSize="small" />
-                  </Avatar>
-                )}
-                <Tooltip
-                  title={
-                    message.metrics
-                      ? `Response time: ${(message.metrics.latencyMs / 1000).toFixed(1)}s | Tokens: ${message.metrics.tokensUsed || 0} | Tools: ${(message.toolsUsed || []).join(", ") || "none"}`
-                      : ""
-                  }
+              {!isUser ? (
+                <Box
+                  sx={{
+                    width: 34,
+                    height: 34,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: "50%",
+                    bgcolor: "#1e293b",
+                    border: "1px solid rgba(124,58,237,0.35)",
+                    color: "#c4b5fd",
+                    fontSize: 12,
+                    fontWeight: 900,
+                  }}
                 >
-                  <Paper
-                    sx={{
-                      px: 2,
-                      py: 1.5,
-                      maxWidth: "min(100%, 760px)",
-                      bgcolor: isAssistant ? "background.paper" : "primary.main",
-                      color: isAssistant ? "text.primary" : "white",
-                      borderRadius: isAssistant ? "18px 18px 18px 6px" : "18px 18px 6px 18px",
-                    }}
-                  >
-                    {isAssistant ? (
-                      <BugBotRenderer content={message.content || ""} />
-                    ) : (
-                      <Typography sx={{ whiteSpace: "pre-wrap" }}>{message.content}</Typography>
-                    )}
+                  BOT
+                </Box>
+              ) : null}
+              <Paper
+                sx={{
+                  maxWidth: "min(86%, 720px)",
+                  px: 2,
+                  py: 1.5,
+                  borderRadius: isUser ? "18px 18px 6px 18px" : "18px 18px 18px 6px",
+                  color: isUser ? "#fff" : "#e2e8f0",
+                  bgcolor: isUser ? "transparent" : "#1a2235",
+                  background: isUser ? "linear-gradient(135deg, #7c3aed, #2563eb)" : "#1a2235",
+                  border: isUser ? "none" : "1px solid rgba(124,58,237,0.22)",
+                }}
+              >
+                {isUser ? (
+                  <Typography sx={{ whiteSpace: "pre-wrap" }}>{message.content}</Typography>
+                ) : (
+                  <BugBotRenderer content={message.content || ""} />
+                )}
 
-                    {Array.isArray(message.toolActivity) && message.toolActivity.length > 0 && (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                        {message.toolActivity.map((item) => (
-                          <Chip
-                            key={`${item.tool}-${item.status}`}
-                            size="small"
-                            color={item.status === "done" ? "success" : "default"}
-                            icon={
-                              item.status === "done" ? (
-                                <CheckCircleRounded fontSize="small" />
-                              ) : (
-                                <CircularProgress size={12} />
-                              )
-                            }
-                            label={
-                              item.status === "done"
-                                ? `${item.tool} (${item.resultCount || 0})`
-                                : `${item.tool}...`
-                            }
-                          />
-                        ))}
-                      </Stack>
-                    )}
+                {!isUser && Array.isArray(message.toolActivity) && message.toolActivity.length > 0 ? (
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+                    {message.toolActivity.map((item) => (
+                      <Chip
+                        key={`${item.tool}-${item.status}`}
+                        size="small"
+                        label={`${item.status === "done" ? "Done" : "Running"} ${String(item.tool || "").replace(/_/g, " ")}`}
+                        sx={{
+                          bgcolor: "rgba(124,58,237,0.16)",
+                          border: "1px solid rgba(124,58,237,0.3)",
+                          color: "#c4b5fd",
+                          fontWeight: 800,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                ) : null}
 
-                    {Array.isArray(message.suggestions) && message.suggestions.length > 0 && (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-                        {message.suggestions.map((suggestion) => (
-                          <Chip
-                            key={suggestion}
-                            label={suggestion}
-                            variant="outlined"
-                            size="small"
-                            clickable
-                            onClick={() => {
-                              setDraft(suggestion);
-                              void sendMessage(suggestion);
-                            }}
-                          />
-                        ))}
-                      </Stack>
-                    )}
-                  </Paper>
-                </Tooltip>
-              </Stack>
-            );
-          })}
-
-          {loading && (
-            <Stack direction="row" spacing={1.25}>
-              <Avatar sx={{ bgcolor: "primary.main", width: 38, height: 38 }}>
-                <SmartToyRounded fontSize="small" />
-              </Avatar>
-              <Paper sx={{ px: 2, py: 1.5 }}>
-                <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
-                  <CircularProgress size={18} />
-                  <Typography color="text.secondary">
-                    BugBot is streaming a response...
+                {!isUser && message.metrics?.tokensUsed ? (
+                  <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#64748b" }}>
+                    {message.metrics.tokensUsed} tokens
                   </Typography>
-                </Stack>
+                ) : null}
+
+                {!isUser && Array.isArray(message.suggestions) && message.suggestions.length > 0 ? (
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+                    {message.suggestions.map((suggestion) => (
+                      <Chip
+                        key={suggestion}
+                        label={suggestion}
+                        variant="outlined"
+                        size="small"
+                        clickable
+                        onClick={() => {
+                          setDraft(suggestion);
+                          inputRef.current?.focus();
+                        }}
+                        sx={{ borderColor: "#334155", color: "#94a3b8" }}
+                      />
+                    ))}
+                  </Stack>
+                ) : null}
+
+                <Typography variant="caption" sx={{ display: "block", mt: 0.75, color: isUser ? "rgba(255,255,255,0.65)" : "#64748b" }}>
+                  {formatTime()}
+                </Typography>
               </Paper>
             </Stack>
-          )}
-          <div ref={messagesEndRef} />
-        </Stack>
+          );
+        })}
 
-        <Divider />
+        {loading ? (
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "50%",
+                bgcolor: "#1e293b",
+                border: "1px solid rgba(124,58,237,0.35)",
+                color: "#c4b5fd",
+                fontSize: 12,
+                fontWeight: 900,
+              }}
+            >
+              BOT
+            </Box>
+            <Paper sx={{ px: 2, py: 1.5, bgcolor: "#1a2235", border: "1px solid rgba(124,58,237,0.22)" }}>
+              <Stack direction="row" spacing={0.75}>
+                {[0, 1, 2].map((item) => (
+                  <Box
+                    key={item}
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      bgcolor: "#7c3aed",
+                      animation: "pulse 1s infinite",
+                      animationDelay: `${item * 0.15}s`,
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Paper>
+          </Stack>
+        ) : null}
+        <div ref={messagesEndRef} />
+      </Stack>
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ p: 2.5 }}>
-          <Stack spacing={2}>
-            {error && <Alert severity="error">{error}</Alert>}
+      <Box component="form" onSubmit={handleSubmit} sx={{ p: 2, borderTop: "1px solid #334155", bgcolor: "#0f172a" }}>
+        <Stack spacing={1.25}>
+          {error ? <Alert severity="error">{error}</Alert> : null}
+          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-end" }}>
+            <IconButton
+              onClick={handleVoiceInput}
+              sx={{
+                color: listening ? "#f87171" : "#94a3b8",
+                border: "1px solid #334155",
+                bgcolor: "#1e293b",
+              }}
+            >
+              <MicOutlined />
+            </IconButton>
             <TextField
+              inputRef={inputRef}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask BugBot about bugs, projects, dashboard stats, or actions."
+              placeholder="Ask BugBot about bugs, projects, stats..."
               multiline
-              minRows={3}
-              maxRows={8}
+              minRows={1}
+              maxRows={5}
               fullWidth
-              slotProps={{
-                input: {
-                  startAdornment: (
-                  <InputAdornment position="start">
-                    <IconButton
-                      onClick={handleVoiceInput}
-                      color={listening ? "error" : "default"}
-                      sx={{
-                        border: listening ? "2px solid" : "1px solid transparent",
-                        borderColor: listening ? "error.main" : "transparent",
-                        animation: listening ? "pulse 1.2s infinite" : "none",
-                      }}
-                    >
-                      <MicOutlined />
-                    </IconButton>
-                  </InputAdornment>
-                  ),
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "#1e293b",
+                  color: "#e2e8f0",
+                  borderRadius: 3,
+                  "& fieldset": { borderColor: "#334155" },
+                  "&:hover fieldset": { borderColor: "#7c3aed" },
+                  "&.Mui-focused fieldset": { borderColor: "#7c3aed" },
                 },
+                "& textarea::placeholder": { color: "#64748b", opacity: 1 },
               }}
             />
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
+            <IconButton
+              type="submit"
+              disabled={loading || !draft.trim()}
               sx={{
-                justifyContent: "space-between",
-                alignItems: { xs: "stretch", sm: "center" },
+                width: 48,
+                height: 48,
+                color: "#fff",
+                background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+                "&:hover": { background: "linear-gradient(135deg, #6d28d9, #1d4ed8)" },
+                "&.Mui-disabled": { bgcolor: "#334155", color: "#64748b" },
               }}
             >
-              <Typography variant="body2" color="text.secondary">
-                Press `Enter` to send. Use `Shift + Enter` for a new line.
-              </Typography>
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                endIcon={
-                  loading ? <CircularProgress size={16} color="inherit" /> : <SendRounded />
-                }
-                disabled={loading || !draft.trim()}
-              >
-                Send Message
-              </Button>
-            </Stack>
+              {loading ? <CircularProgress size={18} color="inherit" /> : <SendRounded />}
+            </IconButton>
           </Stack>
-        </Box>
-      </Paper>
-    </Stack>
+          <Typography variant="caption" sx={{ color: "#64748b", textAlign: "center" }}>
+            Press Enter to send. Shift + Enter for new line.
+          </Typography>
+        </Stack>
+      </Box>
+    </Paper>
   );
 }

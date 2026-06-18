@@ -57,6 +57,13 @@ const parseTaggedBlocks = (content) => {
   return blocks.length ? blocks : [{ type: "text", value: content }];
 };
 
+const asArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.data)) return value.data.data;
+  return [];
+};
+
 export default function BugBotRenderer({ content }) {
   const [selectedBug, setSelectedBug] = useState(null);
   const blocks = useMemo(() => parseTaggedBlocks(content), [content]);
@@ -64,7 +71,8 @@ export default function BugBotRenderer({ content }) {
   return (
     <Stack spacing={1.5}>
       {blocks.map((block, index) => {
-        if (block.type === "bug_list" && Array.isArray(block.value)) {
+        if (block.type === "bug_list") {
+          const bugs = asArray(block.value);
           return (
             <Paper key={index} variant="outlined" sx={{ overflowX: "auto" }}>
               <Table size="small">
@@ -77,7 +85,7 @@ export default function BugBotRenderer({ content }) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {block.value.map((bug) => (
+                  {bugs.map((bug) => (
                     <TableRow
                       key={bug.id}
                       hover
@@ -105,10 +113,11 @@ export default function BugBotRenderer({ content }) {
           );
         }
 
-        if (block.type === "project_list" && Array.isArray(block.value)) {
+        if (block.type === "project_list") {
+          const projects = asArray(block.value);
           return (
             <Grid key={index} container spacing={1.5}>
-              {block.value.map((project) => (
+              {projects.map((project) => (
                 <Grid size={{ xs: 12, md: 6 }} key={project.id}>
                   <Paper variant="outlined" sx={{ p: 1.5 }}>
                     <Typography fontWeight={700}>{project.title}</Typography>

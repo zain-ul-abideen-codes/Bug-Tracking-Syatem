@@ -10,10 +10,12 @@
     "seed:demo-users": "node src/seeds/demoUsersSeed.js",
     "seed:sample-data": "node src/seeds/sampleDataSeed.js",
     "seed:defaults": "node src/seeds/defaultDataSeed.js",
+    "backfill:token-usage": "node src/seeds/backfillTokenUsageDaily.js",
     "backup:data": "node src/seeds/backupData.js",
     "restore:backup": "node src/seeds/restoreBackup.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.100.1",
     "@langchain/core": "^1.1.42",
     "@langchain/openai": "^1.4.5",
     "bcrypt": "^5.1.1",

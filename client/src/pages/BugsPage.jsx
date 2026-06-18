@@ -18,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import BookmarkAddRoundedIcon from "@mui/icons-material/BookmarkAddRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
@@ -46,6 +47,8 @@ import StatusChip from "../components/common/StatusChip";
 import ConfirmDialog from "../components/common/ConfirmDialog";
 import BugModal from "../components/modals/BugModal";
 import EmptyState from "../components/common/EmptyState";
+import ResolutionCopilot from "../components/bugs/ResolutionCopilot";
+import StatusChangeWarning from "../components/StatusChangeWarning";
 
 const SETTINGS_KEY = "bugtracker-pro-user-settings";
 const SAVED_FILTERS_KEY = "bugtracker-pro-issue-filters";
@@ -53,6 +56,9 @@ const STATUS_BY_TYPE = {
   bug: ["new", "started", "resolved", "reopened"],
   feature: ["new", "started", "completed", "reopened"],
 };
+
+const PRIORITY_OPTIONS = ["Critical", "High", "Medium", "Low"];
+const COPILOT_ROLES = ["developer"];
 
 const laneDescriptions = {
   new: "Freshly reported work",
@@ -72,7 +78,22 @@ const laneAccentMap = {
 
 const getBugId = (bug) => String(bug?.id || bug?._id || "");
 
+const normalizeRole = (role = "") => role.toString().trim().toLowerCase();
+const isAdminRole = (role = "") => ["admin", "administrator"].includes(normalizeRole(role));
+const ADMIN_WARNING_STATUSES = ["new", "started"];
+const getPayloadStatus = (payload) => (payload instanceof FormData ? payload.get("status") : payload?.status);
+
 const getBugPriority = (bug) => {
+  if (bug?.priority) {
+    const priorityColorMap = {
+      Critical: "error",
+      High: "warning",
+      Medium: "info",
+      Low: "success",
+    };
+    return { label: bug.priority, color: priorityColorMap[bug.priority] || "default" };
+  }
+
   if (!bug?.deadline || ["resolved", "completed"].includes(bug.status)) {
     return { label: "Normal", color: "default" };
   }
@@ -252,6 +273,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
   const { user, accessToken, loading: authLoading } = useAuth();
   const { notify } = useNotification();
   const currentUserId = String(user?.userId || user?._id || "");
+  const currentUserRole = normalizeRole(user?.role);
   const [searchParams] = useSearchParams();
   const userStorageKey = `${SAVED_FILTERS_KEY}:${currentUserId || user?.role || "guest"}`;
   const [bugs, setBugs] = useState([]);
@@ -267,6 +289,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState(projectId || "all");
   const [assigneeFilter, setAssigneeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("deadline");
@@ -287,6 +310,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
   const [kanbanGroupBy, setKanbanGroupBy] = useState("status");
   const [detailBug, setDetailBug] = useState(null);
   const [pulseLaneKey, setPulseLaneKey] = useState("");
+  const [statusWarning, setStatusWarning] = useState(null);
   const [viewMode, setViewMode] = useState(() => {
     try {
       const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
@@ -299,6 +323,16 @@ export default function BugsPage({ projectId = null, embedded = false }) {
 
   const debouncedQuery = useDebouncedValue(query);
   const canCreate = ["administrator", "qa"].includes(user.role);
+  const isCurrentDeveloperAssigned = (bug) => {
+    if (currentUserRole !== "developer" || !bug) return false;
+    const assignedId = String(bug.assignedDeveloper?._id || bug.assignedDeveloper || "");
+    return Boolean(currentUserId && assignedId && assignedId === currentUserId);
+  };
+
+  const openIssueDetail = (bug) => {
+    const freshBug = bugs.find((item) => item._id === bug._id) || bug;
+    setDetailBug(freshBug);
+  };
 
   useEffect(() => {
     localStorage.setItem(userStorageKey, JSON.stringify(savedFilters));
@@ -358,6 +392,8 @@ export default function BugsPage({ projectId = null, embedded = false }) {
         bug.createdBy?.name,
         bug.status,
         bug.type,
+        bug.priority,
+        bug.aiReason,
       ]
         .filter(Boolean)
         .join(" ")
@@ -366,6 +402,10 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       const matchesQuery = !debouncedQuery || blob.includes(debouncedQuery.toLowerCase());
       const matchesStatus = statusFilter === "all" || bug.status === statusFilter;
       const matchesType = typeFilter === "all" || bug.type === typeFilter;
+      const matchesPriority =
+        priorityFilter === "all" ||
+        bug.priority === priorityFilter ||
+        getBugPriority(bug).label === priorityFilter;
       const matchesProject = projectFilter === "all" || bug.project?._id === projectFilter;
       const matchesAssignee = assigneeFilter === "all" || bug.assignedDeveloper?._id === assigneeFilter;
       const matchesMine =
@@ -381,6 +421,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
         matchesQuery &&
         matchesStatus &&
         matchesType &&
+        matchesPriority &&
         matchesProject &&
         matchesAssignee &&
         matchesMine &&
@@ -405,6 +446,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     bugs,
     currentUserId,
     debouncedQuery,
+    priorityFilter,
     projectFilter,
     showMineOnly,
     showOverdueOnly,
@@ -518,6 +560,26 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     return true;
   };
 
+  const shouldWarnAdminStatusChange = (bug, nextStatus) =>
+    isAdminRole(user.role) &&
+    bug &&
+    nextStatus &&
+    bug.status !== nextStatus &&
+    ADMIN_WARNING_STATUSES.includes(bug.status);
+
+  const requestAdminStatusChange = ({ bug, newStatus, execute }) => {
+    if (!bug || !newStatus || bug.status === newStatus) {
+      return false;
+    }
+
+    if (shouldWarnAdminStatusChange(bug, newStatus)) {
+      setStatusWarning({ bug, newStatus, execute });
+      return true;
+    }
+
+    return false;
+  };
+
   const saveCurrentFilter = () => {
     const trimmedName = savedFilterName.trim();
     if (!trimmedName) {
@@ -531,6 +593,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       query,
       statusFilter,
       typeFilter,
+      priorityFilter,
       projectFilter,
       assigneeFilter,
       sortBy,
@@ -548,6 +611,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     setQuery(filter.query || "");
     setStatusFilter(filter.statusFilter || "all");
     setTypeFilter(filter.typeFilter || "all");
+    setPriorityFilter(filter.priorityFilter || "all");
     setProjectFilter(filter.projectFilter || "all");
     setAssigneeFilter(filter.assigneeFilter || "all");
     setSortBy(filter.sortBy || "deadline");
@@ -561,6 +625,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     setQuery("");
     setStatusFilter("all");
     setTypeFilter("all");
+    setPriorityFilter("all");
     setProjectFilter(projectId || "all");
     setAssigneeFilter("all");
     setSortBy("deadline");
@@ -582,6 +647,34 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       headerName: "Status",
       minWidth: 140,
       renderCell: ({ value }) => <StatusChip status={value} />,
+    },
+    {
+      field: "priority",
+      headerName: "Priority",
+      minWidth: 170,
+      renderCell: ({ row }) => {
+        const priority = getBugPriority(row);
+        return (
+          <Stack spacing={0.5} sx={{ height: "100%", justifyContent: "center", alignItems: "flex-start" }}>
+            <Chip
+              size="small"
+              label={priority.label}
+              color={priority.color}
+              variant={priority.color === "default" ? "outlined" : "filled"}
+            />
+            {row.prioritySource === "ai" ? (
+              <Chip
+                size="small"
+                icon={<AutoAwesomeRoundedIcon />}
+                label="AI Suggested"
+                color="primary"
+                variant="outlined"
+                sx={{ fontSize: 11, height: 22 }}
+              />
+            ) : null}
+          </Stack>
+        );
+      },
     },
     {
       field: "project",
@@ -646,6 +739,8 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       headerName: "Actions",
       minWidth: 170,
       sortable: false,
+      align: "center",
+      headerAlign: "center",
       renderCell: ({ row }) => {
         const editable = canEdit(row);
         const deletable = canDelete(row);
@@ -660,9 +755,14 @@ export default function BugsPage({ projectId = null, embedded = false }) {
         const deleteTooltip = deletable ? "Delete" : "Only your own created issues can be deleted";
 
         return (
-          <Stack direction="row" spacing={0.5}>
+          <Stack direction="row" spacing={0.5} sx={{ width: "100%", height: "100%", alignItems: "center", justifyContent: "center" }}>
             <Tooltip title="View details">
-              <IconButton onClick={() => setDetailBug(row)}>
+              <IconButton
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openIssueDetail(row);
+                }}
+              >
                 <VisibilityRoundedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -693,7 +793,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     },
   ];
 
-  const handleBugSubmit = async (payload) => {
+  const persistBugSubmit = async (payload) => {
     try {
       setSubmitLoading(true);
       setSubmitError("");
@@ -725,6 +825,22 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  const handleBugSubmit = async (payload) => {
+    const nextStatus = getPayloadStatus(payload);
+    if (
+      selectedBug &&
+      requestAdminStatusChange({
+        bug: selectedBug,
+        newStatus: nextStatus,
+        execute: () => persistBugSubmit(payload),
+      })
+    ) {
+      return;
+    }
+
+    await persistBugSubmit(payload);
   };
 
   const handleDelete = async () => {
@@ -780,18 +896,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
     }
   };
 
-  const handleLaneDrop = async (event, status) => {
-    event.preventDefault();
-    const droppedBugId = event.dataTransfer.getData("text/plain") || draggedBugId;
-    const bug = bugs.find((entry) => getBugId(entry) === droppedBugId);
-
-    setDragOverStatus("");
-    setDraggedBugId(null);
-
-    if (!canMoveToStatus(bug, status)) {
-      return;
-    }
-
+  const executeLaneStatusMove = async (droppedBugId, bug, status) => {
     const previousStatus = bug.status;
     setBugs((current) =>
       current.map((entry) =>
@@ -819,6 +924,31 @@ export default function BugsPage({ projectId = null, embedded = false }) {
       );
       notify(error.response?.data?.message || "Unable to move issue.", "error");
     }
+  };
+
+  const handleLaneDrop = async (event, status) => {
+    event.preventDefault();
+    const droppedBugId = event.dataTransfer.getData("text/plain") || draggedBugId;
+    const bug = bugs.find((entry) => getBugId(entry) === droppedBugId);
+
+    setDragOverStatus("");
+    setDraggedBugId(null);
+
+    if (!canMoveToStatus(bug, status)) {
+      return;
+    }
+
+    if (
+      requestAdminStatusChange({
+        bug,
+        newStatus: status,
+        execute: () => executeLaneStatusMove(droppedBugId, bug, status),
+      })
+    ) {
+      return;
+    }
+
+    await executeLaneStatusMove(droppedBugId, bug, status);
   };
 
   if (loading || authLoading) return <PageSkeleton cards={3} rows={6} />;
@@ -914,6 +1044,14 @@ export default function BugsPage({ projectId = null, embedded = false }) {
               {["all", "new", "started", "resolved", "completed", "reopened"].map((status) => (
                 <MenuItem key={status} value={status} sx={{ textTransform: "capitalize" }}>
                   {status === "all" ? "All Statuses" : status}
+                </MenuItem>
+              ))}
+            </Select>
+            <Select size="small" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)} sx={{ minWidth: 160 }}>
+              <MenuItem value="all">All Priorities</MenuItem>
+              {PRIORITY_OPTIONS.map((priority) => (
+                <MenuItem key={priority} value={priority}>
+                  {priority}
                 </MenuItem>
               ))}
             </Select>
@@ -1228,7 +1366,7 @@ export default function BugsPage({ projectId = null, embedded = false }) {
                             isDragging={draggedBugId === getBugId(bug)}
                             onDragStart={handleCardDragStart}
                             onDragEnd={handleCardDragEnd}
-                            onPreview={(nextBug) => setDetailBug(nextBug)}
+                            onPreview={openIssueDetail}
                             onEdit={(nextBug) => { setSelectedBug(nextBug); setSubmitError(""); setDialog("bug"); }}
                             onDelete={(nextBug) => { setSelectedBug(nextBug); setDialog("delete"); }}
                           />
@@ -1248,15 +1386,24 @@ export default function BugsPage({ projectId = null, embedded = false }) {
         anchor="right"
         open={Boolean(detailBug)}
         onClose={() => setDetailBug(null)}
+        ModalProps={{ keepMounted: true }}
         PaperProps={{
           sx: {
-            width: { xs: "100%", sm: 420 },
-            p: 3,
+            width: "100vw",
+            minWidth: "100vw",
+            maxWidth: "100vw",
+            height: "100dvh",
+            minHeight: "100dvh",
+            p: { xs: 2.25, sm: 4 },
+            overflowY: "auto",
+            overflowX: "hidden",
+            boxSizing: "border-box",
+            borderRadius: 0,
           },
         }}
       >
         {detailBug ? (
-          <Stack spacing={2.5}>
+          <Stack spacing={2.5} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
             <Stack direction="row" spacing={1} sx={{ justifyContent: "space-between", alignItems: "flex-start" }}>
               <Stack spacing={1}>
                 <Typography variant="overline" color="primary.main">
@@ -1279,6 +1426,15 @@ export default function BugsPage({ projectId = null, embedded = false }) {
                 color={getBugPriority(detailBug).color}
                 variant={getBugPriority(detailBug).color === "default" ? "outlined" : "filled"}
               />
+              {detailBug.aiGenerated ? (
+                <Chip
+                  size="small"
+                  icon={<AutoAwesomeRoundedIcon />}
+                  label="AI Generated"
+                  color="secondary"
+                  variant="filled"
+                />
+              ) : null}
             </Stack>
             <Divider />
             <Stack spacing={1}>
@@ -1301,6 +1457,42 @@ export default function BugsPage({ projectId = null, embedded = false }) {
                 <Typography>{detailBug.deadline ? new Date(detailBug.deadline).toLocaleDateString() : "No deadline"}</Typography>
               </Grid>
             </Grid>
+            {COPILOT_ROLES.includes(currentUserRole) ? (
+              <>
+                <Divider />
+                {isCurrentDeveloperAssigned(detailBug) ? (
+                  <ResolutionCopilot
+                    bugId={detailBug._id}
+                    bugStatus={detailBug.status}
+                    bugType={detailBug.type}
+                    userRole={user.role}
+                    developerName={detailBug.assignedDeveloper?.name}
+                    bugTitle={detailBug.title}
+                    onStatusUpdate={(updatedBug) => {
+                      setDetailBug((current) => (current ? { ...current, ...updatedBug } : current));
+                      setBugs((current) =>
+                        current.map((bug) => (bug._id === detailBug._id ? { ...bug, ...updatedBug } : bug))
+                      );
+                    }}
+                  />
+                ) : (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      bgcolor: "rgba(25, 118, 210, 0.06)",
+                      borderColor: "rgba(25, 118, 210, 0.24)",
+                    }}
+                  >
+                    <Typography fontWeight={800}>Resolution Copilot</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      This AI fix assistant is available only to the developer assigned to this issue.
+                    </Typography>
+                  </Paper>
+                )}
+              </>
+            ) : null}
             {detailBug.activity?.length ? (
               <>
                 <Divider />
@@ -1342,6 +1534,19 @@ export default function BugsPage({ projectId = null, embedded = false }) {
         confirmLabel="Archive"
         onClose={() => setDialog("")}
         onConfirm={handleDelete}
+      />
+      <StatusChangeWarning
+        isOpen={Boolean(statusWarning)}
+        currentStatus={statusWarning?.bug?.status || ""}
+        newStatus={statusWarning?.newStatus || ""}
+        developerName={statusWarning?.bug?.assignedDeveloper?.name || "Unassigned"}
+        bugTitle={statusWarning?.bug?.title || "Selected issue"}
+        onCancel={() => setStatusWarning(null)}
+        onConfirm={async () => {
+          const pending = statusWarning;
+          setStatusWarning(null);
+          await pending?.execute?.();
+        }}
       />
     </Stack>
   );

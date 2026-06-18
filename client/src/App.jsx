@@ -50,6 +50,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="audit-logs"
+          element={
+            <ProtectedRoute roles={["administrator"]}>
+              <LazyPage><AuditPage /></LazyPage>
+            </ProtectedRoute>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

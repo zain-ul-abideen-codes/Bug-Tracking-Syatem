@@ -5,6 +5,7 @@
   "scripts": {
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "dev": "node scripts/run-dev.js",
+    "clean:generated": "node scripts/clean-generated.js",
     "seed:admin": "npm run seed:admin --prefix server",
     "seed:defaults": "npm run seed:defaults --prefix server",
     "backup:data": "npm run backup:data --prefix server",

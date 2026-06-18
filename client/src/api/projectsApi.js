@@ -7,6 +7,11 @@ export const getProjects = async (token) => {
   return data.projects;
 };
 
+export const getProjectMembers = async (projectId) => {
+  const { data } = await api.get(`/projects/${projectId}/members`);
+  return data;
+};
+
 export const createProject = async (payload) => {
   const { data } = await api.post("/projects", payload);
   return data;

@@ -21,6 +21,7 @@ It now includes a modern Material UI frontend, JWT access and refresh token auth
 - Password hashing with `bcrypt`
 - Project creation, editing, assignment, and deletion
 - Bug and feature request tracking
+- AI-powered bug priority suggestion with optional manual override
 - PNG and GIF screenshot uploads
 - Comment and reopened workflow support
 - Role-based dashboards and analytics
@@ -107,6 +108,7 @@ It now includes a modern Material UI frontend, JWT access and refresh token auth
 ```text
 bug-tracking-system/
 |-- client/
+|   |-- public/
 |   |-- index.html
 |   |-- package.json
 |   |-- vite.config.js
@@ -121,9 +123,14 @@ bug-tracking-system/
 |       |-- hooks/
 |       |-- pages/
 |       `-- styles/
+|-- docs/
+|   `-- PROJECT_STRUCTURE.md
 |-- scripts/
-|   `-- dev-server.js
+|   |-- dev-server.js
+|   |-- generate-presentation.js
+|   `-- run-dev.js
 |-- server/
+|   |-- backups/
 |   |-- package.json
 |   `-- src/
 |       |-- config/
@@ -140,6 +147,15 @@ bug-tracking-system/
 |-- package.json
 `-- README.md
 ```
+
+### Structure Notes
+
+- Source code lives in `client/src` and `server/src`
+- Documentation lives in `docs`
+- Local utility scripts live in `scripts`
+- Generated build output such as `client/dist` is not part of the main source structure
+- Local JSON restore snapshots live in `server/backups`
+- A detailed structure guide is available in [docs/PROJECT_STRUCTURE.md](D:\final-project\bug-tracking-system\docs\PROJECT_STRUCTURE.md)
 
 ## Environment Variables
 
@@ -168,6 +184,7 @@ SEED_ADMIN_PASSWORD=Admin@12345
 
 ```env
 OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=your_anthropic_key_here
 AGENT_MODEL=gpt-4o
 AGENT_MAX_TOKENS=2000
 AGENT_TEMPERATURE=0
@@ -197,6 +214,16 @@ Or use the helper command:
 npm run install:all
 ```
 
+## Workspace Housekeeping
+
+To remove generated local clutter such as temporary build output and old development log files, run:
+
+```powershell
+npm run clean:generated
+```
+
+This command only targets generated artifacts and does not remove source code.
+
 ## Running the Project
 
 ### Recommended: Single Command Development Mode
@@ -216,7 +243,7 @@ npm run dev
 This uses:
 
 - [package.json](D:\final-project\bug-tracking-system\package.json)
-- [scripts/dev-server.js](D:\final-project\bug-tracking-system\scripts\dev-server.js)
+- [scripts/run-dev.js](D:\final-project\bug-tracking-system\scripts\run-dev.js)
 
 The development launcher expects:
 

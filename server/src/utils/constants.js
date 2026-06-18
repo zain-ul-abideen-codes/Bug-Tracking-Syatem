@@ -15,8 +15,11 @@ const BUG_STATUS = {
   feature: ["new", "started", "completed", "reopened"],
 };
 
+const BUG_PRIORITY = ["Critical", "High", "Medium", "Low"];
+
 module.exports = {
   ROLES,
   BUG_TYPES,
   BUG_STATUS,
+  BUG_PRIORITY,
 };

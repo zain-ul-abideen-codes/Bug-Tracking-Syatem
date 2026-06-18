@@ -6,6 +6,7 @@ const Bug = require("../models/Bug");
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const agentCache = require("./agentCache");
+const { recordTokenUsageDaily } = require("./tokenUsageService");
 const { BUG_STATUS, BUG_TYPES, ROLES } = require("../utils/constants");
 const logger = require("../utils/logger");
 
@@ -255,17 +256,6 @@ const updateSessionEntities = async (context, patch = {}) => {
   await context.session.save();
 };
 
-const writeNotification = async ({ recipientId, bugId, assignedBy }) => {
-  await mongoose.connection.collection("notifications").insertOne({
-    recipientId: ensureObjectId(recipientId, "recipientId"),
-    type: "bug_assigned",
-    bugId: ensureObjectId(bugId, "bugId"),
-    assignedBy: ensureObjectId(assignedBy, "assignedBy"),
-    createdAt: new Date(),
-    read: false,
-  });
-};
-
 const logAudit = async ({
   context,
   toolName,
@@ -286,10 +276,16 @@ const logAudit = async ({
       success,
       errorMessage,
       latencyMs,
+      responseTimeMs: latencyMs,
       tokensUsed,
       ipAddress: context.requestMeta?.ipAddress || null,
       userAgent: context.requestMeta?.userAgent || null,
       timestamp: new Date(),
+    });
+    await recordTokenUsageDaily({
+      userId: ensureObjectId(context.userId, "userId"),
+      userRole: context.role,
+      tokensUsed,
     });
   } catch (error) {
     logger.error("Failed to write tool audit log.", {
@@ -623,12 +619,6 @@ const createAgentTools = (context, tracker = {}) => {
           message: `${context.name} assigned this issue to ${developer.name}.`,
         });
         await bug.save();
-
-        await writeNotification({
-          recipientId: developer._id,
-          bugId: bug._id,
-          assignedBy: context.userId,
-        });
 
         const updatedBug = await Bug.findById(bug._id).populate(bugPopulate).lean();
         await updateSessionEntities(context, {

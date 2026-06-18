@@ -10,6 +10,7 @@ const {
   removeAgentSession,
   getAgentAuditLogs,
   getAgentAuditStatistics,
+  getAgentTokenUsage,
   getAgentHealth,
 } = require("../controllers/agentController");
 
@@ -53,6 +54,7 @@ router.delete("/sessions/:id", authenticate, removeAgentSession);
  * @returns {object}
  */
 router.get("/audit", authenticate, authorize(ROLES.ADMIN), getAgentAuditLogs);
+router.get("/audit-logs", authenticate, authorize(ROLES.ADMIN), getAgentAuditLogs);
 
 /**
  * @route GET /api/agent/audit/stats
@@ -60,6 +62,7 @@ router.get("/audit", authenticate, authorize(ROLES.ADMIN), getAgentAuditLogs);
  * @returns {object}
  */
 router.get("/audit/stats", authenticate, authorize(ROLES.ADMIN), getAgentAuditStatistics);
+router.get("/token-usage", authenticate, authorize(ROLES.ADMIN), getAgentTokenUsage);
 
 /**
  * @route GET /api/agent/health

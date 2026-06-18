@@ -1,18 +1,21 @@
 const express = require("express");
 const authenticate = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
+const bugPriorityRateLimiter = require("../middleware/bugPriorityRateLimiter");
+const sanitizePrioritySuggestionInput = require("../middleware/sanitizePrioritySuggestionInput");
 const validateObjectId = require("../middleware/validateObjectId");
 const upload = require("../config/multer");
-const { listBugs, createBug, updateBug, deleteBug, addComment } = require("../controllers/bugController");
+const { listBugs, suggestPriority, createBug, updateBug, deleteBug, addComment } = require("../controllers/bugController");
 const { ROLES } = require("../utils/constants");
 
 const router = express.Router();
 
 router.use(authenticate);
 router.get("/", listBugs);
+router.post("/suggest-priority", bugPriorityRateLimiter, sanitizePrioritySuggestionInput, suggestPriority);
 router.post(
   "/",
-  authorize(ROLES.ADMIN, ROLES.QA),
+  authorize(ROLES.ADMIN, ROLES.MANAGER, ROLES.QA),
   upload.single("screenshot"),
   createBug
 );

@@ -9,6 +9,8 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,6 +20,8 @@ import {
   MenuItem,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useMediaQuery,
   useTheme,
@@ -25,10 +29,82 @@ import {
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { Controller, useForm } from "react-hook-form";
+import { suggestBugPriority } from "../../api/bugsApi";
+import AIQuickReport from "../bugs/AIQuickReport";
 
 const statusByType = {
   bug: ["new", "started", "resolved", "reopened"],
   feature: ["new", "started", "completed", "reopened"],
+};
+
+const priorityOptions = ["Critical", "High", "Medium", "Low"];
+
+const priorityColors = {
+  Critical: "#EF4444",
+  High: "#F97316",
+  Medium: "#EAB308",
+  Low: "#22C55E",
+};
+
+const priorityKeywordRules = [
+  {
+    priority: "Critical",
+    confidence: 90,
+    keywords: [
+      "crash",
+      "down",
+      "not working",
+      "broken",
+      "error",
+      "fail",
+      "login",
+      "auth",
+      "payment",
+      "data loss",
+      "security",
+      "hack",
+      "vulnerability",
+      "freeze",
+      "blank screen",
+      "cannot access",
+    ],
+  },
+  {
+    priority: "High",
+    confidence: 86,
+    keywords: ["slow", "bug", "wrong", "incorrect", "missing", "not loading", "stuck", "issue", "problem", "not working for some"],
+  },
+  {
+    priority: "Medium",
+    confidence: 80,
+    keywords: ["sometimes", "occasionally", "minor issue", "small bug", "not always", "workaround", "partially"],
+  },
+  {
+    priority: "Low",
+    confidence: 74,
+    keywords: ["typo", "color", "font", "spacing", "alignment", "ui", "cosmetic", "suggestion", "enhancement", "improve"],
+  },
+];
+
+const suggestPriorityLocally = ({ title, description }) => {
+  const text = `${title} ${description}`.toLowerCase();
+
+  for (const rule of priorityKeywordRules) {
+    const matchedKeyword = rule.keywords.find((keyword) => text.includes(keyword));
+    if (matchedKeyword) {
+      return {
+        priority: rule.priority,
+        confidence: rule.confidence,
+        reason: `Detected "${matchedKeyword}" in the issue details, so ${rule.priority.toLowerCase()} priority is suggested.`,
+      };
+    }
+  }
+
+  return {
+    priority: "Medium",
+    confidence: 78,
+    reason: "No stronger priority keywords were detected, so medium priority is suggested.",
+  };
 };
 
 export default function BugModal({
@@ -47,6 +123,21 @@ export default function BugModal({
   const fileRef = useRef(null);
   const [fileError, setFileError] = useState("");
   const [preview, setPreview] = useState(issue?.screenshot || "");
+  const [prioritySuggestion, setPrioritySuggestion] = useState(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
+  const [createMode, setCreateMode] = useState("manual");
+  const [acceptedSuggestion, setAcceptedSuggestion] = useState(
+    issue?.prioritySource === "ai"
+      ? {
+          priority: issue?.aiSuggestedPriority,
+          confidence: issue?.aiConfidence,
+          reason: issue?.aiReason,
+        }
+      : null
+  );
+  const lastSuggestionKeyRef = useRef("");
+  const suggestionTimerRef = useRef(null);
 
   const {
     control,
@@ -61,6 +152,7 @@ export default function BugModal({
       title: issue?.title || "",
       type: issue?.type || "bug",
       status: issue?.status || "new",
+      priority: issue?.priority || issue?.aiSuggestedPriority || "Medium",
       project: issue?.project || null,
       assignedDeveloper: issue?.assignedDeveloper || null,
       deadline: issue?.deadline ? dayjs(issue.deadline) : null,
@@ -74,6 +166,7 @@ export default function BugModal({
       title: issue?.title || "",
       type: issue?.type || "bug",
       status: issue?.status || "new",
+      priority: issue?.priority || issue?.aiSuggestedPriority || "Medium",
       project: issue?.project || null,
       assignedDeveloper: issue?.assignedDeveloper || null,
       deadline: issue?.deadline ? dayjs(issue.deadline) : null,
@@ -82,16 +175,54 @@ export default function BugModal({
     });
     setPreview(issue?.screenshot || "");
     setFileError("");
+    setPrioritySuggestion(null);
+    setSuggestionError("");
+    setSuggestionLoading(false);
+    setCreateMode("manual");
+    setAcceptedSuggestion(
+      issue?.prioritySource === "ai"
+        ? {
+            priority: issue?.aiSuggestedPriority,
+            confidence: issue?.aiConfidence,
+            reason: issue?.aiReason,
+          }
+        : null
+    );
+    lastSuggestionKeyRef.current = "";
   }, [issue, open, reset]);
 
   const selectedType = watch("type");
   const selectedProject = watch("project");
+  const watchedTitle = watch("title");
+  const watchedDescription = watch("description");
+  const isDeveloperOnly = role === "developer";
+  const canUseAiQuickReport = !issue && !isDeveloperOnly;
 
   useEffect(() => {
     if (!statusByType[selectedType]?.includes(watch("status"))) {
       setValue("status", statusByType[selectedType][0], { shouldValidate: true });
     }
   }, [selectedType, setValue, watch]);
+
+  useEffect(() => {
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+    }
+
+    if (issue || isDeveloperOnly || !watchedTitle?.trim() || !watchedDescription?.trim()) {
+      return undefined;
+    }
+
+    suggestionTimerRef.current = setTimeout(() => {
+      void handlePrioritySuggestion();
+    }, 900);
+
+    return () => {
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+      }
+    };
+  }, [issue, isDeveloperOnly, watchedDescription, watchedTitle]);
 
   const availableDevelopers = useMemo(() => {
     if (!selectedProject?.developers?.length) {
@@ -131,6 +262,13 @@ export default function BugModal({
     payload.append("title", values.title);
     payload.append("type", values.type);
     payload.append("status", values.status);
+    payload.append("priority", values.priority);
+    payload.append("prioritySource", acceptedSuggestion ? "ai" : "manual");
+    if (acceptedSuggestion) {
+      payload.append("aiSuggestedPriority", acceptedSuggestion.priority);
+      payload.append("aiConfidence", acceptedSuggestion.confidence);
+      payload.append("aiReason", acceptedSuggestion.reason);
+    }
     payload.append("project", values.project?._id || "");
     payload.append("description", values.description || "");
     if (values.assignedDeveloper?._id) {
@@ -145,7 +283,56 @@ export default function BugModal({
     return payload;
   };
 
-  const isDeveloperOnly = role === "developer";
+  const handlePrioritySuggestion = async () => {
+    if (issue || isDeveloperOnly) {
+      return;
+    }
+
+    const title = watchedTitle?.trim();
+    const description = watchedDescription?.trim();
+    if (!title || !description) {
+      return;
+    }
+
+    const nextSuggestionKey = `${title}::${description}`;
+    if (nextSuggestionKey === lastSuggestionKeyRef.current) {
+      return;
+    }
+
+    lastSuggestionKeyRef.current = nextSuggestionKey;
+    setSuggestionLoading(true);
+    setSuggestionError("");
+    setPrioritySuggestion(null);
+
+    try {
+      const suggestion = await suggestBugPriority({ title, description });
+      setPrioritySuggestion(suggestion);
+      setAcceptedSuggestion(suggestion);
+      setValue("priority", suggestion.priority, { shouldValidate: true, shouldDirty: true });
+    } catch (_error) {
+      const fallbackSuggestion = suggestPriorityLocally({ title, description });
+      setPrioritySuggestion(fallbackSuggestion);
+      setAcceptedSuggestion(fallbackSuggestion);
+      setValue("priority", fallbackSuggestion.priority, { shouldValidate: true, shouldDirty: true });
+      setSuggestionError("");
+    } finally {
+      setSuggestionLoading(false);
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (!prioritySuggestion) {
+      return;
+    }
+    setValue("priority", prioritySuggestion.priority, { shouldValidate: true, shouldDirty: true });
+    setAcceptedSuggestion(prioritySuggestion);
+    setPrioritySuggestion(null);
+  };
+
+  const handleManualPriorityChange = (field, value) => {
+    field.onChange(value);
+    setAcceptedSuggestion(null);
+  };
 
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
@@ -156,6 +343,25 @@ export default function BugModal({
         </IconButton>
       </DialogTitle>
       <DialogContent>
+        {canUseAiQuickReport ? (
+          <ToggleButtonGroup
+            exclusive
+            value={createMode}
+            onChange={(_, value) => {
+              if (value) {
+                setCreateMode(value);
+              }
+            }}
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="manual">Manual Form</ToggleButton>
+            <ToggleButton value="ai">AI Quick Report</ToggleButton>
+          </ToggleButtonGroup>
+        ) : null}
+
+        {createMode === "ai" && canUseAiQuickReport ? (
+          <AIQuickReport projects={projects} loading={loading} role={role} onSubmit={onSubmit} />
+        ) : (
         <Grid container spacing={2} sx={{ mt: 0.5 }}>
           {!isDeveloperOnly ? (
             <>
@@ -206,6 +412,110 @@ export default function BugModal({
 
           {!isDeveloperOnly ? (
             <>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="priority"
+                  control={control}
+                  rules={{ required: "Priority is required." }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      select
+                      fullWidth
+                      label="Priority"
+                      onChange={(event) => handleManualPriorityChange(field, event.target.value)}
+                      error={Boolean(errors.priority)}
+                      helperText={errors.priority?.message}
+                      InputProps={{
+                        endAdornment: acceptedSuggestion ? (
+                          <Chip
+                            size="small"
+                            label="AI Suggested"
+                            color="primary"
+                            sx={{ mr: 3, fontWeight: 700 }}
+                          />
+                        ) : null,
+                      }}
+                    >
+                      {priorityOptions.map((priority) => (
+                        <MenuItem key={priority} value={priority}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                            <Box
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                bgcolor: priorityColors[priority],
+                              }}
+                            />
+                            <span>{priority}</span>
+                          </Stack>
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  )}
+                />
+                {suggestionLoading ? (
+                  <Stack direction="row" spacing={1} sx={{ mt: 1.25, alignItems: "center" }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption" color="text.secondary">
+                      AI is analyzing priority...
+                    </Typography>
+                  </Stack>
+                ) : null}
+                {suggestionError ? (
+                  <Alert severity="info" variant="outlined" sx={{ mt: 1.25 }}>
+                    {suggestionError}
+                  </Alert>
+                ) : null}
+                {prioritySuggestion ? (
+                  <Box
+                    sx={{
+                      mt: 1.25,
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      bgcolor: "background.paper",
+                    }}
+                  >
+                    <Stack spacing={1}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+                        <Chip
+                          size="small"
+                          label={prioritySuggestion.priority}
+                          sx={{
+                            color: "#fff",
+                            fontWeight: 700,
+                            bgcolor: priorityColors[prioritySuggestion.priority],
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {prioritySuggestion.confidence}% confident
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                        {prioritySuggestion.reason}
+                      </Typography>
+                      <Stack direction="row" spacing={1}>
+                        <Button size="small" variant="contained" onClick={handleAcceptSuggestion}>
+                          Accept Suggestion
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="text"
+                          onClick={() => {
+                            setPrioritySuggestion(null);
+                            setAcceptedSuggestion(null);
+                          }}
+                        >
+                          Ignore
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                ) : null}
+              </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
                   name="project"
@@ -302,7 +612,19 @@ export default function BugModal({
                 <Controller
                   name="description"
                   control={control}
-                  render={({ field }) => <TextField {...field} fullWidth multiline minRows={4} label="Description" />}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      multiline
+                      minRows={4}
+                      label="Description"
+                      onBlur={(event) => {
+                        field.onBlur();
+                        void handlePrioritySuggestion();
+                      }}
+                    />
+                  )}
                 />
               </Grid>
               <Grid size={12}>
@@ -344,14 +666,21 @@ export default function BugModal({
             </>
           ) : null}
         </Grid>
+        )}
         {submitError ? <Alert severity="error" sx={{ mt: 2 }}>{submitError}</Alert> : null}
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button variant="outlined" onClick={onClose} disabled={loading}>Cancel</Button>
-        <Button variant="contained" disabled={!isValid || loading || Boolean(fileError)} onClick={handleSubmit((values) => onSubmit(buildPayload(values)))}>
-          {loading ? "Saving..." : "Save Issue"}
-        </Button>
-      </DialogActions>
+      {createMode === "ai" && canUseAiQuickReport ? (
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button variant="outlined" onClick={onClose} disabled={loading}>Cancel</Button>
+        </DialogActions>
+      ) : (
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button variant="outlined" onClick={onClose} disabled={loading}>Cancel</Button>
+          <Button variant="contained" disabled={!isValid || loading || Boolean(fileError)} onClick={handleSubmit((values) => onSubmit(buildPayload(values)))}>
+            {loading ? "Saving..." : "Save Issue"}
+          </Button>
+        </DialogActions>
+      )}
     </Dialog>
   );
 }
